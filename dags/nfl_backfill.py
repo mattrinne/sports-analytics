@@ -16,7 +16,7 @@ from nfl_pipeline.datasets import REGISTRY
 
 @dag(
     dag_id="nfl_backfill",
-    description="Backfill nflverse datasets into staging.* for a season range, then upsert clean.* and rebuild nfl.* with dbt.",
+    description="Backfill nflverse datasets into staging.* for a season range, then upsert clean.* and the nfl.* marts with dbt.",
     schedule=None,
     start_date=pendulum.datetime(2025, 1, 1, tz="America/Chicago"),
     catchup=False,

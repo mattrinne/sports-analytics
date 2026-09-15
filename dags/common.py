@@ -65,7 +65,7 @@ def plan_seasons(dataset: str, min_season: int, **context) -> list[int]:
 
 
 def dbt_build() -> BashOperator:
-    """Upsert the clean layer and rebuild the nfl views with dbt after every load group.
+    """Upsert the clean layer and the nfl marts with dbt after every load group.
 
     Clean models are incremental merges by primary key, so a normal run only touches rows whose
     staging partition was reloaded. params.full_refresh drops and recreates every clean table (whole

@@ -23,7 +23,7 @@ def current_season() -> int:
 
 @dag(
     dag_id="nfl_weekly_refresh",
-    description="Reload the current season of every nflverse dataset into staging, then upsert clean.* and rebuild nfl.* with dbt.",
+    description="Reload the current season of every nflverse dataset into staging, then upsert clean.* and the nfl.* marts with dbt.",
     schedule="0 8 * * 2,3",
     start_date=pendulum.datetime(2025, 1, 1, tz="America/Chicago"),
     catchup=False,

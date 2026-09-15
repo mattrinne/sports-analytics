@@ -10,7 +10,7 @@ nflverse parquet (GitHub releases)
         ▼
  src/nfl_pipeline  ──COPY──▶  Postgres  staging.*  (landing zone: 1:1 mirror of the files, truncatable)
                                         clean.*    (dbt: same tables and columns, types fixed, upserted by key — the durable copy)
-                                        nfl.*      (dbt: analysis views over clean — games, plays, coaches, box scores)
+                                        nfl.*      (dbt: persisted marts — coach dimension, reference mappings; no views)
         ▲
  Airflow 3 (LocalExecutor)  dags/nfl_backfill  (manual, season range)
                             dags/nfl_weekly_refresh  (Tue+Wed 08:00 America/Chicago, current season)
@@ -31,7 +31,7 @@ docker compose up -d --build       # postgres + api-server, scheduler, dag-proce
 
 Then in the UI unpause **nfl_backfill** and trigger it. Defaults load every dataset from
 `NFL_START_SEASON` (2010) through the current season into `staging.*`, then run `dbt build` to
-upsert `clean.*` and rebuild the `nfl.*` views. Afterwards unpause
+upsert `clean.*` and the `nfl.*` marts. Afterwards unpause
 **nfl_weekly_refresh** and it keeps the current season fresh.
 
 From the CLI instead of the UI:
@@ -112,15 +112,14 @@ How it is maintained (`dbt/`):
   when triggering either DAG, or run `uv run nfl-pipeline transform --full-refresh`. A full refresh
   rebuilds from whatever is in staging, so run it while staging still holds the seasons you care
   about (a backfill first if you truncated).
-- `nfl.*` views (`games`, `plays`, `coach_games`, `coach_stints`, `game_coordinators`,
-  `player_game_stats`, `team_game_stats`) are dbt models in `dbt/models/marts/` and read only
-  from `clean`.
-- `nfl.coaches` is the one persisted mart: a coach dimension with a stable numeric `coach_id`
+- `nfl.*` holds persisted marts only, no views: today the coach dimension, its aliases and the
+  reference mappings below. Analysis queries go straight against `clean.*`.
+- `nfl.coaches` is a coach dimension with a stable numeric `coach_id`
   for joins (`coach_name`, `created_at`, `updated_at`), one row per distinct coach in
   `clean.coaching_staff` after spelling variants are resolved. Ids come from a sequence and are
   never reused; the model opts out of `--full-refresh`. `nfl.coach_aliases` lists every known
-  spelling with its `coach_id`, and `nfl.game_coordinators` carries `*_id` columns resolved
-  through it, so nflverse's head-coach names and Wikipedia's coordinator names land on one key.
+  spelling with its `coach_id` (a small table rebuilt every run), so nflverse's head-coach names and
+  Wikipedia's coordinator names resolve to one key when you join through it.
 - **Reference mappings.** Spelling variants (`Billy Davis` / `Bill Davis`, `Pete Carmichael` /
   `Pete Carmichael Jr.`, nflverse's `Klint Kubliak`) are resolved through one curated
   reference-data table, `nfl.reference_mappings`, seeded from `data/seeds/reference_mappings.csv`
@@ -133,6 +132,19 @@ How it is maintained (`dbt/`):
   daggers, `, Jr.` punctuation) are fixed in the Wikipedia parser instead of being mapped. Because
   the dimension is upsert-only, a name that changes for any other reason (a parser fix, a
   Wikipedia edit) leaves its old row behind until you add a mapping row for the old spelling.
+
+Typical queries go straight at `clean.*` (typed, all history):
+
+```sql
+select posteam, avg(epa) from clean.pbp where season = 2024 and pass group by 1 order by 2 desc;
+-- coverage charted by NGS participation (2016+, lags a season)
+select pa.defense_coverage_type, count(*), avg(p.epa)
+from clean.pbp p join clean.participation pa on pa.nflverse_game_id = p.game_id and pa.play_id = p.play_id
+where p.season = 2024 and p.pass_attempt group by 1;
+-- coordinators per team-season, keyed by coach_id
+select s.season, s.team, s.role, a.coach_id, a.coach_name
+from clean.coaching_staff s join nfl.coach_aliases a on a.alias = s.coach;
+```
 
 ```bash
 uv run nfl-pipeline transform            # = dbt build (incremental upsert), against NFL_DB_* (localhost)
@@ -215,7 +227,7 @@ uv sync                                  # creates .venv with the package + dev 
 uv run nfl-pipeline list
 uv run nfl-pipeline load pbp --season 2024
 uv run nfl-pipeline backfill --start 2010 -d team_stats_week -d player_stats_week
-uv run nfl-pipeline transform            # dbt build: upsert clean.*, rebuild nfl.*
+uv run nfl-pipeline transform            # dbt build: upsert clean.* and nfl.* marts
 uv run nfl-pipeline staging truncate -d pbp   # reclaim space once clean has it
 uv run pytest
 ```
@@ -230,7 +242,7 @@ The CLI reads `NFL_DATABASE_URL` (defaults to the Docker Postgres on localhost) 
 ```
 dags/                 nfl_backfill.py, nfl_weekly_refresh.py, nfl_metadata_refresh.py, nfl_staging_truncate.py, common.py
 src/nfl_pipeline/     config.py, datasets.py (registry), db.py (DDL/COPY), ingest.py, cli.py
-dbt/                  dbt project: models/clean (typed copies, contracts, primary keys), models/marts (nfl views)
+dbt/                  dbt project: models/clean (typed copies, contracts, primary keys), models/marts (persisted nfl.* marts)
 scripts/              gen_clean_models.py (typed SELECT per staging table), gen_dbt_columns.py (column yml), coach_alias_candidates.py
 sql/metadata/         metadata.column_labels view
 data/                 curated inputs: metadata/*.yaml (labels, rules, overrides, table docs), coaching_staff_overrides.csv, seeds/reference_mappings.csv
@@ -245,7 +257,7 @@ nflreadpy's own parquet cache, which lives on a named Docker volume.
 
 ## Roadmap
 
-- **Current betting lines.** Historical closing lines are already in `nfl.games`. For live/opening
+- **Current betting lines.** Historical closing lines are already in `clean.schedules`. For live/opening
   lines the plan is an append-only `staging.odds_snapshots` table (upserted into clean like everything else) fed by
   [The Odds API](https://the-odds-api.com/) (free tier: 500 credits/month) on a Thu/Sat/Sun
   cadence. `ODDS_API_KEY` is reserved in `.env.example`.

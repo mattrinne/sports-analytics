@@ -1,5 +1,5 @@
-{{ config(alias='coach_aliases') }}
--- Every known spelling of a coach -> coach_id: the canonical name itself plus each
+{{ config(alias='coach_aliases', materialized='table') }}
+-- Persisted (rebuilt every run from nfl.coaches + reference_mappings; tiny). Every known spelling of a coach -> coach_id: the canonical name itself plus each
 -- reference_mappings row for the coach_name domain. Join names from any source through this.
 select c.coach_id, c.coach_name, c.coach_name as alias, null::text as source_system
 from {{ ref('nfl_coaches') }} c
