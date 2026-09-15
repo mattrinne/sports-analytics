@@ -1,0 +1,57 @@
+version: 2
+models:
+- name: coaching_staff
+  description: 'Typed copy of staging.coaching_staff: every column, same names, types fixed. Upserted
+    by primary key on every load.'
+  config:
+    unique_key: &id001
+    - _row_id
+  constraints:
+  - type: primary_key
+    columns: *id001
+  columns:
+  - name: _row_id
+    data_type: text
+    description: md5 of the identifying columns; surrogate primary key for tables whose source key is
+      not unique or contains NULLs.
+  - name: season
+    data_type: smallint
+    description: NFL season the staff entry applies to.
+  - name: team
+    data_type: text
+    description: nflverse team abbreviation.
+  - name: role
+    data_type: text
+    description: Normalized role - head_coach, offensive_coordinator, defensive_coordinator or special_teams_coordinator.
+      A combined title (e.g. interim head coach/special teams coordinator) yields one row per role.
+  - name: title
+    data_type: text
+    description: Title exactly as listed on Wikipedia (e.g. "Interim offensive coordinator", "Co-defensive
+      coordinator").
+  - name: coach
+    data_type: text
+    description: Coach's name as listed on Wikipedia.
+  - name: is_interim
+    data_type: boolean
+    description: TRUE when the title contains interim/acting.
+  - name: start_date
+    data_type: date
+    description: First day this person held the role, when a mid-season change was noted; NULL means from
+      the start of the season.
+  - name: end_date
+    data_type: date
+    description: Day this person left the role (exclusive), when a mid-season change was noted; NULL means
+      through the end of the season.
+  - name: note
+    data_type: text
+    description: Free-text note captured from Wikipedia (e.g. "fired on November 5").
+  - name: flags
+    data_type: text
+    description: Parser quality flags - undated_change, ambiguous_multiple, date_kind_guessed, or override
+      when the row comes from data/coaching_staff_overrides.csv.
+  - name: source_url
+    data_type: text
+    description: Wikipedia article the row was parsed from.
+  - name: _loaded_at
+    data_type: timestamp with time zone
+    description: When this row was loaded into staging. Drives incremental upserts into clean.

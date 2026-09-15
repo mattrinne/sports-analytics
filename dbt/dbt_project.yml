@@ -1,0 +1,33 @@
+# dbt project for the clean and analysis layers. staging.* is loaded by nfl_pipeline (Python);
+# clean.* is a typed, upserted copy of it (so staging can be truncated) and nfl.* are analysis
+# views over clean. Run `dbt build --full-refresh` after a contract (type) change or to drop rows
+# nflverse deleted from a re-published season; it needs the affected seasons present in staging.
+name: nfl_warehouse
+version: "1.0.0"
+profile: nfl
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  nfl_warehouse:
+    clean:
+      +schema: clean
+      # Upsert by primary key on every run (tables are never dropped except with --full-refresh),
+      # taking only source rows whose staging _loaded_at is newer than the target's (see only_new()).
+      +materialized: incremental
+      +incremental_strategy: merge
+      +on_schema_change: fail
+      +contract:
+        enforced: true
+      +persist_docs:
+        relation: true
+        columns: true
+    marts:
+      +schema: nfl
+      +materialized: view
+      +persist_docs:
+        relation: true

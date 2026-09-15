@@ -1,0 +1,64 @@
+version: 2
+models:
+- name: teams
+  description: 'Typed copy of staging.teams: every column, same names, types fixed. Upserted by primary
+    key on every load.'
+  config:
+    unique_key: &id001
+    - team_abbr
+  constraints:
+  - type: primary_key
+    columns: *id001
+  columns:
+  - name: team_abbr
+    data_type: text
+    description: nflverse team abbreviation (e.g. KC, LA). Primary key; joins to team columns in every
+      other table. Includes historical abbreviations for relocated franchises.
+  - name: team_name
+    data_type: text
+    description: Full team name (city + nickname).
+  - name: team_id
+    data_type: text
+    description: NFL numeric team id.
+  - name: team_nick
+    data_type: text
+    description: Team nickname (e.g. Chiefs).
+  - name: team_conf
+    data_type: text
+    description: Conference (AFC/NFC).
+  - name: team_division
+    data_type: text
+    description: Division (e.g. AFC West).
+  - name: team_color
+    data_type: text
+    description: Primary team color, hex.
+  - name: team_color2
+    data_type: text
+    description: Secondary team color, hex.
+  - name: team_color3
+    data_type: text
+    description: Tertiary team color, hex.
+  - name: team_color4
+    data_type: text
+    description: Quaternary team color, hex.
+  - name: team_logo_wikipedia
+    data_type: text
+    description: URL of team logo (Wikipedia).
+  - name: team_logo_espn
+    data_type: text
+    description: URL of team logo (ESPN).
+  - name: team_wordmark
+    data_type: text
+    description: URL of team wordmark image.
+  - name: team_conference_logo
+    data_type: text
+    description: URL of conference logo.
+  - name: team_league_logo
+    data_type: text
+    description: URL of NFL league logo.
+  - name: team_logo_squared
+    data_type: text
+    description: URL of square-cropped team logo.
+  - name: _loaded_at
+    data_type: timestamp with time zone
+    description: When this row was loaded into staging. Drives incremental upserts into clean.

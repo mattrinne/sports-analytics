@@ -1,0 +1,86 @@
+# Table-level documentation for clean.* (same tables and column names as staging) plus defaults used when labeling columns.
+# `dictionaries` lists nflverse dictionary files (downloaded from nflreadr/data-raw at build time) that describe the table.
+schedules:
+  description: One row per NFL game with schedule, result, head coaches, referee, venue, weather and closing betting lines. All seasons in a single nflverse file.
+  grain: game
+  default_entity: game
+  source: nflverse schedules (Lee Sharpe games file)
+  source_url: https://github.com/nflverse/nflverse-data/releases/tag/schedules
+  dictionaries: [dictionary_schedules.csv]
+teams:
+  description: Team master with abbreviations, names, conference/division and branding assets. Includes historical relocations (e.g. OAK, SD, STL).
+  grain: team
+  default_entity: team
+  source: nflverse teams
+  source_url: https://github.com/nflverse/nflverse-data/releases/tag/teams
+  dictionaries: []
+players:
+  description: Player master with names, position, physical attributes, draft info and identifiers across NFL, ESPN, PFR, PFF and OTC.
+  grain: player
+  default_entity: player
+  source: nflverse players
+  source_url: https://github.com/nflverse/nflverse-data/releases/tag/players
+  dictionaries: [dictionary_players.csv]
+rosters:
+  description: Season-level roster snapshot, one row per player-team-season.
+  grain: player-season
+  default_entity: player
+  source: nflverse rosters
+  source_url: https://github.com/nflverse/nflverse-data/releases/tag/rosters
+  dictionaries: [dictionary_rosters.csv]
+rosters_weekly:
+  description: Week-level rosters, one row per player-team-week; who was on the roster for each game week (2002+).
+  grain: player-week
+  default_entity: player
+  source: nflverse weekly_rosters
+  source_url: https://github.com/nflverse/nflverse-data/releases/tag/weekly_rosters
+  dictionaries: [dictionary_rosters.csv]
+depth_charts:
+  description: Depth charts. Two formats coexist - legacy weekly rows (season/week/club_code/depth_team, through 2024) and NGS daily snapshots (dt/team/pos_slot/pos_rank, 2025+). Columns not belonging to a row's format are NULL.
+  grain: player-slot per week (legacy) or per snapshot (NGS)
+  default_entity: player
+  source: nflverse depth_charts
+  source_url: https://github.com/nflverse/nflverse-data/releases/tag/depth_charts
+  dictionaries: [dictionary_depth_charts.csv]
+team_stats_week:
+  description: Post-game team box score aggregated from play-by-play by nflfastR, one row per team-game.
+  grain: team-game
+  default_entity: team
+  source: nflverse stats_team
+  source_url: https://github.com/nflverse/nflverse-data/releases/tag/stats_team
+  dictionaries: [dictionary_team_stats.json]
+player_stats_week:
+  description: Post-game player box score aggregated from play-by-play by nflfastR, one row per player-game, including fantasy points.
+  grain: player-game
+  default_entity: player
+  source: nflverse stats_player
+  source_url: https://github.com/nflverse/nflverse-data/releases/tag/stats_player
+  dictionaries: [dictionary_player_stats.json]
+pbp:
+  description: nflfastR play-by-play. One row per play with situation, outcome flags, player attribution, and EP/WP/CP model outputs. ~370 columns, ~50k rows per season.
+  grain: play
+  default_entity: play
+  source: nflverse pbp (nflfastR)
+  source_url: https://github.com/nflverse/nflverse-data/releases/tag/pbp
+  dictionaries: [dictionary_pbp.csv]
+participation:
+  description: Next Gen Stats participation charting, one row per play - formation, personnel groupings, players on the field, pass rushers, coverage scheme. 2016+, published after the season ends. Coverage fields are charted on roughly half of plays.
+  grain: play
+  default_entity: play
+  source: nflverse pbp_participation (NGS)
+  source_url: https://github.com/nflverse/nflverse-data/releases/tag/pbp_participation
+  dictionaries: [dictionary_participation.csv]
+officials:
+  description: Officiating crew per game, one row per official-game (2015+).
+  grain: official-game
+  default_entity: official
+  source: nflverse officials
+  source_url: https://github.com/nflverse/nflverse-data/releases/tag/officials
+  dictionaries: []
+coaching_staff:
+  description: Coaching staff per team-season - head coach, offensive coordinator, defensive coordinator, special teams coordinator - with mid-season change dates, parsed from the Staff section of Wikipedia "<season> <Team> season" articles. Interim holders are separate rows. Curated corrections live in data/coaching_staff_overrides.csv.
+  grain: coach-role per team-season
+  default_entity: coach
+  source: Wikipedia (NFL final staff template), parsed by nfl_pipeline.sources.wikipedia_staff
+  source_url: https://en.wikipedia.org/wiki/Template:NFL_final_staff
+  dictionaries: []

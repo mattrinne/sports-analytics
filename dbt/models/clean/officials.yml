@@ -1,0 +1,44 @@
+version: 2
+models:
+- name: officials
+  description: 'Typed copy of staging.officials: every column, same names, types fixed. Upserted by primary
+    key on every load.'
+  config:
+    unique_key: &id001
+    - game_id
+    - official_id
+  constraints:
+  - type: primary_key
+    columns: *id001
+  columns:
+  - name: game_id
+    data_type: text
+    description: nflverse game id (season_week_away_home). Joins to schedules.game_id.
+  - name: game_key
+    data_type: text
+    description: NFL internal game key for the game.
+  - name: official_name
+    data_type: text
+    description: Official's full name.
+  - name: position
+    data_type: text
+    description: Officiating position (Referee, Umpire, Down Judge, Line Judge, Field Judge, Side Judge,
+      Back Judge, Replay Official).
+  - name: jersey_number
+    data_type: smallint
+    description: Official's jersey number.
+  - name: official_id
+    data_type: text
+    description: NFL official id.
+  - name: season
+    data_type: smallint
+    description: NFL season.
+  - name: season_type
+    data_type: text
+    description: REG or POST.
+  - name: week
+    data_type: smallint
+    description: Week of the season.
+  - name: _loaded_at
+    data_type: timestamp with time zone
+    description: When this row was loaded into staging. Drives incremental upserts into clean.

@@ -1,0 +1,440 @@
+version: 2
+models:
+- name: team_stats_week
+  description: 'Typed copy of staging.team_stats_week: every column, same names, types fixed. Upserted
+    by primary key on every load.'
+  config:
+    unique_key: &id001
+    - season
+    - week
+    - team
+  constraints:
+  - type: primary_key
+    columns: *id001
+  columns:
+  - name: season
+    data_type: smallint
+    description: Official NFL season
+  - name: week
+    data_type: smallint
+    description: Game week number
+  - name: team
+    data_type: text
+    description: Abbreviation of team
+  - name: season_type
+    data_type: text
+    description: '`REG` for regular season, `POST` for postseason'
+  - name: game_id
+    data_type: text
+    description: nflverse game id (season_week_away_home). Joins to schedules.game_id and pbp.game_id.
+  - name: opponent_team
+    data_type: text
+    description: Abbreviation of opponent team
+  - name: completions
+    data_type: smallint
+    description: The number of completed passes.
+  - name: attempts
+    data_type: smallint
+    description: The number of pass attempts as defined by the NFL.
+  - name: passing_yards
+    data_type: smallint
+    description: Yards gained on pass plays.
+  - name: passing_tds
+    data_type: smallint
+    description: The number of passing touchdowns.
+  - name: passing_interceptions
+    data_type: smallint
+    description: Number of passing interceptions
+  - name: sacks_suffered
+    data_type: smallint
+    description: Number of sacks taken as a QB
+  - name: sack_yards_lost
+    data_type: smallint
+    description: Yards lost from sacks suffered by this team
+  - name: sack_fumbles
+    data_type: smallint
+    description: The number of sacks suffered with a fumble.
+  - name: sack_fumbles_lost
+    data_type: smallint
+    description: The number of sacks suffered with a lost fumble.
+  - name: passing_air_yards
+    data_type: smallint
+    description: Passing air yards (includes incomplete passes).
+  - name: passing_yards_after_catch
+    data_type: smallint
+    description: Yards after the catch gained on plays in which player was the passer (this is an unofficial
+      stat and may differ slightly between different sources).
+  - name: passing_first_downs
+    data_type: smallint
+    description: First downs on pass attempts.
+  - name: passing_epa
+    data_type: double precision
+    description: 'Total expected points added on pass attempts and sacks. NOTE: this uses the variable
+      `qb_epa`, which gives QB credit for EPA for up to the point where a receiver lost a fumble after
+      a completed catch and makes EPA work more like passing yards on plays with fumbles.'
+  - name: passing_cpoe
+    data_type: double precision
+    description: Completion percentage over expected for this team.
+  - name: passing_2pt_conversions
+    data_type: smallint
+    description: Two-point conversion passes.
+  - name: passing_10
+    data_type: smallint
+    description: Completions of 10 or more yards.
+  - name: passing_16
+    data_type: smallint
+    description: Completions of 16 or more yards.
+  - name: passing_20
+    data_type: smallint
+    description: Completions of 20 or more yards.
+  - name: passing_40
+    data_type: smallint
+    description: Completions of 40 or more yards.
+  - name: carries
+    data_type: smallint
+    description: The number of official rush attempts (incl. scrambles and kneel downs). Rushes after
+      a lateral reception don't count as carry.
+  - name: rushing_yards
+    data_type: smallint
+    description: Yards gained when rushing with the ball (incl. scrambles and kneel downs). Also includes
+      yards gained after obtaining a lateral on a play that started with a rushing attempt.
+  - name: rushing_tds
+    data_type: smallint
+    description: The number of rushing touchdowns (incl. scrambles). Also includes touchdowns after obtaining
+      a lateral on a play that started with a rushing attempt.
+  - name: rushing_fumbles
+    data_type: smallint
+    description: The number of rushes with a fumble.
+  - name: rushing_fumbles_lost
+    data_type: smallint
+    description: The number of rushes with a lost fumble.
+  - name: rushing_first_downs
+    data_type: smallint
+    description: First downs on rush attempts (incl. scrambles).
+  - name: rushing_epa
+    data_type: double precision
+    description: Expected points added on rush attempts (incl. scrambles and kneel downs).
+  - name: rushing_2pt_conversions
+    data_type: smallint
+    description: Two-point conversion rushes
+  - name: rushing_10
+    data_type: smallint
+    description: Rushes of 10 or more yards.
+  - name: rushing_12
+    data_type: smallint
+    description: Rushes of 12 or more yards.
+  - name: rushing_20
+    data_type: smallint
+    description: Rushes of 20 or more yards.
+  - name: rushing_40
+    data_type: smallint
+    description: Rushes of 40 or more yards.
+  - name: receptions
+    data_type: smallint
+    description: The number of pass receptions. Lateral receptions officially don't count as reception.
+  - name: targets
+    data_type: smallint
+    description: The number of pass plays where the player was the targeted receiver.
+  - name: receiving_yards
+    data_type: smallint
+    description: Yards gained after a pass reception. Includes yards gained after receiving a lateral
+      on a play that started as a pass play.
+  - name: receiving_tds
+    data_type: smallint
+    description: The number of touchdowns following a pass reception. Also includes touchdowns after receiving
+      a lateral on a play that started as a pass play.
+  - name: receiving_fumbles
+    data_type: smallint
+    description: The number of fumbles after a pass reception.
+  - name: receiving_fumbles_lost
+    data_type: smallint
+    description: The number of fumbles lost after a pass reception.
+  - name: receiving_air_yards
+    data_type: smallint
+    description: Receiving air yards (incl. incomplete passes).
+  - name: receiving_yards_after_catch
+    data_type: smallint
+    description: Yards after the catch gained on plays in which player was receiver (this is an unofficial
+      stat and may differ slightly between different sources).
+  - name: receiving_first_downs
+    data_type: smallint
+    description: Total number of first downs gained on receptions
+  - name: receiving_epa
+    data_type: double precision
+    description: Total EPA on plays where this receiver was targeted
+  - name: receiving_2pt_conversions
+    data_type: smallint
+    description: Two-point conversion receptions
+  - name: receiving_10
+    data_type: smallint
+    description: Receptions of 10 or more yards.
+  - name: receiving_16
+    data_type: smallint
+    description: Receptions of 16 or more yards.
+  - name: receiving_20
+    data_type: smallint
+    description: Receptions of 20 or more yards.
+  - name: receiving_40
+    data_type: smallint
+    description: Receptions of 40 or more yards.
+  - name: special_teams_tds
+    data_type: smallint
+    description: Total number of kick/punt return touchdowns
+  - name: def_tackles_solo
+    data_type: smallint
+    description: Total number of solo tackles for this team
+  - name: def_tackles_with_assist
+    data_type: smallint
+    description: Number of tackles this team had with an assisted tackle
+  - name: def_tackle_assists
+    data_type: smallint
+    description: Number of assisted tackles for this team
+  - name: def_tackles_for_loss
+    data_type: smallint
+    description: Number of tackles for loss (TFL) for this team
+  - name: def_tackles_for_loss_yards
+    data_type: smallint
+    description: Yards lost from TFLs involving this team
+  - name: def_fumbles_forced
+    data_type: smallint
+    description: Number of times a fumble was forced by this team
+  - name: def_sacks
+    data_type: smallint
+    description: Number of sacks by this team
+  - name: def_sack_yards
+    data_type: smallint
+    description: Yards lost from sacks forced by this team
+  - name: def_qb_hits
+    data_type: smallint
+    description: Number of QB hits by this team (should not include plays where the QB was sacked)
+  - name: def_interceptions
+    data_type: smallint
+    description: Number of interceptions forced by this team
+  - name: def_interception_yards
+    data_type: smallint
+    description: yards gained/lost on interception returns by this team
+  - name: def_pass_defended
+    data_type: smallint
+    description: Number of passes defended/broken up by this team
+  - name: def_tds
+    data_type: smallint
+    description: Number of defensive touchdowns scored by this team
+  - name: def_fumbles
+    data_type: smallint
+    description: Number of fumbles forced by this team
+  - name: def_safeties
+    data_type: smallint
+    description: Number of safeties forced by this team
+  - name: def_punt_blocks
+    data_type: smallint
+    description: Punts blocked by the defense/special teams unit.
+  - name: def_pat_blocks
+    data_type: smallint
+    description: Extra-point attempts blocked.
+  - name: def_fg_blocks
+    data_type: smallint
+    description: Field-goal attempts blocked.
+  - name: def_2pt_atts
+    data_type: smallint
+    description: Defensive two-point conversion attempts (returns of a failed offensive conversion).
+  - name: def_2pt_made
+    data_type: smallint
+    description: Defensive two-point conversions scored.
+  - name: misc_yards
+    data_type: smallint
+    description: Miscellaneous yards attributed to this team
+  - name: fumble_recovery_own
+    data_type: smallint
+    description: Number of the player's own team fumbles recovered
+  - name: fumble_recovery_yards_own
+    data_type: smallint
+    description: Yards gained/lost on own fumble recoveries
+  - name: fumble_recovery_opp
+    data_type: smallint
+    description: Number of the opponent's fumbles recovered
+  - name: fumble_recovery_yards_opp
+    data_type: smallint
+    description: Yardage on opponent fumble recoveries
+  - name: fumble_recovery_tds
+    data_type: smallint
+    description: Fumbles recovered and advanced for a touchdown
+  - name: penalties
+    data_type: smallint
+    description: Number of penalties attributed to this team
+  - name: penalty_yards
+    data_type: smallint
+    description: Penalty yardage on penalties attributed to this team
+  - name: timeouts
+    data_type: smallint
+    description: Number of timeouts used by this team
+  - name: fumbles_forced_by_opp
+    data_type: smallint
+    description: Own fumbles that were forced by an opponent.
+  - name: fumbles_not_forced
+    data_type: smallint
+    description: Own fumbles that were not forced (unforced, e.g. mishandled snap or exchange).
+  - name: fumbles_out_of_bounds
+    data_type: smallint
+    description: Own fumbles that went out of bounds.
+  - name: fumbles_total
+    data_type: smallint
+    description: Total own fumbles across passing, rushing, receiving and special teams.
+  - name: fumbles_lost_total
+    data_type: smallint
+    description: Total own fumbles recovered by the opponent.
+  - name: punt_returns
+    data_type: smallint
+    description: Count of punt returns by this team
+  - name: punt_return_yards
+    data_type: smallint
+    description: Yards gained on punts returned by this team
+  - name: kickoff_returns
+    data_type: smallint
+    description: Count of kick returns by this team
+  - name: kickoff_return_yards
+    data_type: smallint
+    description: Yards gained on kick returns by this team
+  - name: fg_made
+    data_type: smallint
+    description: Count of field goals made by this team
+  - name: fg_att
+    data_type: smallint
+    description: Count of field goals attempted by this team
+  - name: fg_missed
+    data_type: smallint
+    description: Count of field goals missed by this team
+  - name: fg_blocked
+    data_type: smallint
+    description: Count of field goals attempted by this team that were blocked
+  - name: fg_long
+    data_type: smallint
+    description: Longest successful field goal made by this team
+  - name: fg_pct
+    data_type: double precision
+    description: Percentage of field goals successfully made
+  - name: fg_made_0_19
+    data_type: smallint
+    description: Count of field goals within 0-19 yards made by this team
+  - name: fg_made_20_29
+    data_type: smallint
+    description: Count of field goals within 20-29 yards made by this team
+  - name: fg_made_30_39
+    data_type: smallint
+    description: Count of field goals within 30-39 yards made by this team
+  - name: fg_made_40_49
+    data_type: smallint
+    description: Count of field goals within 40-49 yards made by this team
+  - name: fg_made_50_59
+    data_type: smallint
+    description: Count of field goals within 50-59 yards made by this team
+  - name: fg_made_60_
+    data_type: smallint
+    description: Count of field goals over 60 yards made by this team
+  - name: fg_missed_0_19
+    data_type: smallint
+    description: Count of field goals missed between 0-19 yards by this team
+  - name: fg_missed_20_29
+    data_type: smallint
+    description: Count of field goals missed between 20-29 yards by this team
+  - name: fg_missed_30_39
+    data_type: smallint
+    description: Count of field goals missed between 30-39 yards by this team
+  - name: fg_missed_40_49
+    data_type: smallint
+    description: Count of field goals missed between 40-49 yards by this team
+  - name: fg_missed_50_59
+    data_type: smallint
+    description: Count of field goals missed between 50-59 yards by this team
+  - name: fg_missed_60_
+    data_type: smallint
+    description: Count of field goals missed over 60 yards by this team
+  - name: fg_made_list
+    data_type: text
+    description: Comma-separated string listing lengths of field goals made
+  - name: fg_missed_list
+    data_type: text
+    description: Comma-separated string listing lengths of field goals missed
+  - name: fg_blocked_list
+    data_type: text
+    description: Comma-separated string listing lengths of field goals blocked
+  - name: fg_made_distance
+    data_type: smallint
+    description: Total distance on field goals made
+  - name: fg_missed_distance
+    data_type: smallint
+    description: Total distance on field goals missed
+  - name: fg_blocked_distance
+    data_type: smallint
+    description: Total distance on field goals blocked
+  - name: pat_made
+    data_type: smallint
+    description: Count of extra point kicks made
+  - name: pat_att
+    data_type: smallint
+    description: Count of extra point kicks attempted
+  - name: pat_missed
+    data_type: smallint
+    description: Count of extra point kicks missed
+  - name: pat_blocked
+    data_type: smallint
+    description: Count of extra point kicks blocked
+  - name: pat_pct
+    data_type: double precision
+    description: Percentage of extra point kicks successfully completed
+  - name: gwfg_made
+    data_type: smallint
+    description: Count of game winning field goals made
+  - name: gwfg_att
+    data_type: smallint
+    description: Count of game winning field goals attempted
+  - name: gwfg_missed
+    data_type: smallint
+    description: Count of game winning field goals missed
+  - name: gwfg_blocked
+    data_type: smallint
+    description: Count of game winning field goals blocked
+  - name: gwfg_distance
+    data_type: smallint
+    description: Total distance on game winning field goals completed
+  - name: pt_att
+    data_type: smallint
+    description: Punts attempted.
+  - name: pt_blocked
+    data_type: smallint
+    description: Punts blocked.
+  - name: pt_long
+    data_type: smallint
+    description: Longest punt (yards).
+  - name: pt_yards
+    data_type: smallint
+    description: Gross punting yards.
+  - name: pt_inside_20
+    data_type: smallint
+    description: Punts downed or fair-caught inside the opponent 20.
+  - name: pt_out_of_bounds
+    data_type: smallint
+    description: Punts that went out of bounds.
+  - name: pt_downed
+    data_type: smallint
+    description: Punts downed by the punting team.
+  - name: pt_touchback
+    data_type: smallint
+    description: Punts resulting in a touchback.
+  - name: pt_fair_caught
+    data_type: smallint
+    description: Punts fair-caught by the returner.
+  - name: pt_returned
+    data_type: smallint
+    description: Punts returned by the receiving team.
+  - name: pt_return_yards
+    data_type: smallint
+    description: Return yards allowed on punts.
+  - name: pt_return_tds
+    data_type: smallint
+    description: Return touchdowns allowed on punts.
+  - name: pt_net_yards
+    data_type: smallint
+    description: Net punting yards (gross yards minus return yards and touchbacks).
+  - name: _loaded_at
+    data_type: timestamp with time zone
+    description: When this row was loaded into staging. Drives incremental upserts into clean.

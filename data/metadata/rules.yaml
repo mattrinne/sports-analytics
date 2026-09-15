@@ -1,0 +1,433 @@
+# Ordered labeling rules. Each rule: regex `match` on the column name, optional `tables` list
+# (default all), `set` of axis -> label (null clears), `tags` appended. Later rules win for the
+# axes they set. Defaults applied before rules: role from data type, entity from tables.yaml.
+# Check coverage with: uv run nfl-pipeline metadata lint
+rules:
+  # ------------------------------------------------------------------ system / bookkeeping
+  - id: system_columns
+    match: '^(_loaded_at|_row_id)$'
+    set: {role: system, category: system, side: null, entity: null}
+  - id: pbp_system
+    tables: [pbp]
+    match: '^(nfl_api_id|play_deleted|order_sequence|play_clock|end_clock_time|end_yard_line|aborted_play)$'
+    set: {role: system, category: system, side: neutral}
+  - id: depth_chart_snapshot_ts
+    tables: [depth_charts]
+    match: '^dt$'
+    set: {role: time, category: roster, side: neutral}
+    tags: [ngs_depth_chart]
+
+  # ------------------------------------------------------------------ identifiers and names
+  - id: game_ids
+    match: '^(game_id|old_game_id|nflverse_game_id|game_key|gsis|nfl_detail_id|pfr|pff|espn|ftn)$'
+    set: {role: identifier, category: identity, entity: game, side: neutral}
+  - id: play_id
+    match: '^play_id$'
+    set: {role: identifier, category: identity, entity: play, side: neutral}
+  - id: drive_ids
+    tables: [pbp]
+    match: '^(drive|fixed_drive|drive_play_id_started|drive_play_id_ended|series)$'
+    set: {role: identifier, category: drive, entity: drive, side: neutral}
+  - id: series_id
+    tables: [pbp]
+    match: '^series$'
+    set: {category: series}
+  - id: generic_ids
+    match: '_id$'
+    set: {role: identifier, category: identity}
+  - id: player_ids
+    match: '(_player_id$|^(gsis_id|espn_id|sportradar_id|yahoo_id|rotowire_id|pff_id|pfr_id|fantasy_data_id|sleeper_id|esb_id|gsis_it_id|smart_id|nfl_id|otc_id|elias_id|passer_id|rusher_id|receiver_id|fantasy_player_id|fantasy_id|player_id|id|home_qb_id|away_qb_id)$)'
+    set: {role: identifier, category: identity, entity: player}
+  - id: team_ids
+    match: '^(team_id|team_abbr|team|club_code|posteam|defteam|home_team|away_team|possession_team|recent_team|opponent_team|td_team|timeout_team|return_team|penalty_team|latest_team|draft_club|draft_team|depth_team|penalty_team|side_of_field)$|_team$'
+    set: {role: dimension, category: identity, entity: team}
+  - id: team_abbr_key
+    tables: [teams]
+    match: '^(team_abbr|team_id)$'
+    set: {role: identifier}
+  - id: player_names
+    match: '(_player_name$|^(player_name|player_display_name|display_name|full_name|first_name|last_name|football_name|short_name|common_first_name|suffix|passer|rusher|receiver|name|fantasy_player_name|home_qb_name|away_qb_name)$)'
+    set: {role: dimension, category: identity, entity: player}
+  - id: official_ids
+    match: '^(official_id|official_name)$'
+    set: {category: officiating, entity: official, side: neutral}
+  - id: official_name_role
+    match: '^official_name$'
+    set: {role: dimension}
+  - id: stadium_id
+    match: '^stadium_id$'
+    set: {role: identifier, category: venue, entity: venue, side: neutral}
+
+  # ------------------------------------------------------------------ schedule / time
+  - id: schedule_time
+    match: '^(season|week|gameday|weekday|gametime|game_date|start_time|time_of_day)$'
+    set: {role: time, category: schedule, side: neutral}
+  - id: schedule_dims
+    match: '^(season_type|game_type|location|div_game|home_rest|away_rest|overtime)$'
+    set: {category: schedule, side: neutral}
+  - id: schedule_entity
+    tables: [pbp, player_stats_week, team_stats_week, participation, officials, rosters, rosters_weekly, depth_charts]
+    match: '^(season|week|season_type|game_type|game_date|gameday|weekday|gametime|start_time|time_of_day|location|div_game|home_rest|away_rest|overtime)$'
+    set: {entity: game}
+  - id: schedule_flags
+    match: '^(div_game|overtime)$'
+    set: {role: flag}
+  - id: clock
+    tables: [pbp]
+    match: '^(qtr|quarter_end|time|game_half|half_seconds_remaining|quarter_seconds_remaining|game_seconds_remaining)$'
+    set: {role: time, category: game_state, side: neutral, entity: play}
+  - id: quarter_end_flag
+    tables: [pbp]
+    match: '^quarter_end$'
+    set: {role: flag}
+
+  # ------------------------------------------------------------------ game state / situation (pbp)
+  - id: situation
+    tables: [pbp]
+    match: '^(down|ydstogo|yardline_100|yrdln|goal_to_go|ydsnet|posteam_type|score_differential|score_differential_post|posteam_score|defteam_score|posteam_score_post|defteam_score_post|total_home_score|total_away_score|home_timeouts_remaining|away_timeouts_remaining|posteam_timeouts_remaining|defteam_timeouts_remaining|timeout|home_opening_kickoff)$'
+    set: {role: situation, category: game_state, side: neutral, entity: play}
+  - id: situation_flags
+    tables: [pbp]
+    match: '^(goal_to_go|timeout|home_opening_kickoff)$'
+    set: {role: flag}
+  - id: situation_dims
+    tables: [pbp]
+    match: '^(yrdln|posteam_type)$'
+    set: {role: dimension}
+  - id: play_descriptors
+    tables: [pbp]
+    match: '^(play_type|play_type_nfl|st_play_type|desc|shotgun|no_huddle|special_teams_play|special|play|out_of_bounds|replay_or_challenge|replay_or_challenge_result|yards_gained|success|sp|penalty|penalty_type)$'
+    set: {category: game_state, entity: play, side: offense}
+  - id: play_text
+    tables: [pbp]
+    match: '^(desc|weather|drive_start_transition|drive_end_transition)$'
+    set: {role: text}
+  - id: play_flags
+    tables: [pbp]
+    match: '^(shotgun|no_huddle|special_teams_play|special|play|out_of_bounds|replay_or_challenge|success|sp|penalty|qb_dropback|qb_kneel|qb_spike|qb_scramble|pass|rush|first_down|fantasy|xyac_success|xyac_fd|touchback|incomplete_pass|complete_pass|interception|fumble|fumble_lost|fumble_forced|fumble_not_forced|fumble_out_of_bounds|safety|touchdown|pass_touchdown|rush_touchdown|return_touchdown|extra_point_attempt|two_point_attempt|field_goal_attempt|kickoff_attempt|punt_attempt|pass_attempt|rush_attempt|sack|qb_hit|solo_tackle|assist_tackle|tackle_with_assist|tackled_for_loss|lateral_reception|lateral_rush|lateral_return|lateral_recovery|first_down_rush|first_down_pass|first_down_penalty|third_down_converted|third_down_failed|fourth_down_converted|fourth_down_failed|punt_blocked|punt_inside_twenty|punt_in_endzone|punt_out_of_bounds|punt_downed|punt_fair_catch|kickoff_inside_twenty|kickoff_in_endzone|kickoff_out_of_bounds|kickoff_downed|kickoff_fair_catch|own_kickoff_recovery|own_kickoff_recovery_td|defensive_two_point_attempt|defensive_two_point_conv|defensive_extra_point_attempt|defensive_extra_point_conv|series_success|drive_inside20|drive_ended_with_score|aborted_play)$'
+    set: {role: flag}
+  - id: game_result_cols
+    match: '^(home_score|away_score|result|total)$'
+    set: {role: measure, category: scoring, entity: game, side: neutral}
+
+  # ------------------------------------------------------------------ scoring / downs / penalties
+  - id: scoring
+    match: '(touchdown|^td_|^sp$|_tds?$|^two_point|^extra_point_(result|prob)|2pt|safety|_score(_post)?$|^total_(home|away)_score$|^pat_)'
+    set: {category: scoring}
+  - id: scoring_side_offense
+    match: '^(touchdown|pass_touchdown|rush_touchdown|td_team|td_player_id|td_player_name|sp|two_point_conv_result|two_point_attempt|passing_2pt_conversions|rushing_2pt_conversions|receiving_2pt_conversions)$'
+    set: {side: offense}
+  - id: first_downs
+    match: '(first_down|third_down|fourth_down|_first_downs$|^series_success$|^series_result$)'
+    set: {category: first_downs, side: offense}
+  - id: penalties
+    match: 'penalt'
+    set: {category: penalties, side: neutral}
+
+  # ------------------------------------------------------------------ offensive families
+  - id: passing
+    match: '(^pass(ing|er)?(_|$)|^complet|^incomplete_pass|^attempts$|^completions$|^air_yards$|^yards_after_catch$|^pass_length$|^pass_location$|^qb_(dropback|kneel|spike|scramble|epa)$|^sacks_suffered$|^sack_yards_lost$|^sack_fumbles|^pacr$|^shotgun$|^no_huddle$|^ngs_air_yards$|^time_to_throw$)'
+    set: {category: passing, side: offense}
+  - id: rushing
+    match: '(^rush(ing|er)?(_|$)|^carries$|^run_(location|gap)$|^lateral_rush|^first_down_rush$|^tackled_for_loss$)'
+    set: {category: rushing, side: offense}
+  - id: rushing_tfl_is_defense
+    match: '^tackled_for_loss$'
+    set: {category: tackling, side: defense}
+  - id: receiving
+    match: '(^receiv|^receptions$|^targets?$|^target_share$|^air_yards_share$|^racr$|^wopr$|^lateral_recei|^route$)'
+    set: {category: receiving, side: offense}
+  - id: pbp_player_attribution_entity
+    tables: [pbp]
+    match: '(_player_(id|name)$|^(passer|rusher|receiver)(_id|_jersey_number)?$|^(name|id|jersey_number|fantasy_player_name|fantasy_player_id|fantasy_id)$)'
+    set: {entity: player}
+
+  # ------------------------------------------------------------------ turnovers / defense
+  - id: turnovers
+    match: '(fumble|interception)'
+    set: {category: turnovers, side: offense}
+  - id: turnovers_recovery_neutral
+    match: '^fumble_recovery'
+    set: {side: neutral}
+  - id: forced_fumbles_defense
+    match: '(fumble_forced|forced_fumble|def_fumbles_forced|fumbles_forced_by_opp|def_fumbles$)'
+    set: {side: defense}
+  - id: defense_prefix
+    match: '^def_'
+    set: {side: defense}
+  - id: defensive_conversions
+    match: '^(defensive_two_point|defensive_extra_point|def_2pt)'
+    set: {side: defense, category: scoring}
+  - id: tackling
+    match: '(tackle|^def_tackles)'
+    set: {category: tackling, side: defense}
+  - id: pass_rush
+    match: '(^sack|half_sack|^def_sack|qb_hit|^def_qb_hits|^was_pressure$|^number_of_pass_rushers$)'
+    set: {category: pass_rush, side: defense}
+  - id: sacks_from_offense_view
+    match: '^(sacks_suffered|sack_yards_lost|sack_fumbles|sack_fumbles_lost)$'
+    set: {category: passing, side: offense}
+  - id: coverage
+    match: '(pass_defense|^def_pass_defended$|^def_interception|^interception_player|^lateral_interception|^defense_(man_zone_type|coverage_type)$)'
+    set: {category: coverage, side: defense}
+  - id: defensive_tds
+    match: '^(def_tds|def_safeties|def_2pt_atts|def_2pt_made)$'
+    set: {category: scoring, side: defense}
+
+  # ------------------------------------------------------------------ special teams
+  - id: kicking
+    match: '(^fg_|^pat_|^gwfg_|^field_goal|^kick_distance$|^kicker_|^extra_point_(attempt|result)$|^def_(fg|pat)_blocks$|^blocked_player)'
+    set: {category: kicking, side: special_teams}
+  - id: punting
+    match: '(^punt|^pt_|^punter_|^def_punt_blocks$)'
+    set: {category: punting, side: special_teams}
+  - id: kickoffs
+    match: '(kickoff|onside)'
+    set: {category: kickoffs, side: special_teams}
+  - id: returns
+    match: '(return|returner)'
+    set: {category: returns, side: special_teams}
+  - id: st_tds
+    match: '^(special_teams_tds|return_touchdown)$'
+    set: {category: scoring, side: special_teams}
+  - id: kick_lists_text
+    match: '^(fg_made_list|fg_missed_list|fg_blocked_list|fg_made_distance|fg_missed_distance|fg_blocked_distance)$'
+    set: {role: text}
+  - id: kick_rates
+    match: '^(fg_pct|pat_pct|pt_net_yards)$'
+    set: {role: derived}
+  - id: misc_yards
+    match: '^misc_yards$'
+    set: {category: returns, side: special_teams}
+
+  # ------------------------------------------------------------------ personnel (participation)
+  - id: personnel
+    tables: [participation]
+    match: '^(offense_formation|offense_personnel|defense_personnel|defenders_in_box|players_on_play|offense_players|defense_players|n_offense|n_defense|offense_names|defense_names|offense_positions|defense_positions|offense_numbers|defense_numbers)$'
+    set: {category: personnel, role: dimension, side: neutral}
+  - id: personnel_offense
+    tables: [participation]
+    match: '^(offense_|n_offense$)'
+    set: {side: offense}
+  - id: personnel_defense
+    tables: [participation]
+    match: '^(defense_|defenders_in_box$|n_defense$)'
+    set: {side: defense}
+  - id: personnel_counts
+    tables: [participation]
+    match: '^(defenders_in_box|n_offense|n_defense|number_of_pass_rushers)$'
+    set: {role: measure}
+  - id: personnel_lists_text
+    tables: [participation]
+    match: '^(players_on_play|offense_players|defense_players|offense_names|defense_names|offense_positions|defense_positions|offense_numbers|defense_numbers)$'
+    set: {role: text}
+  - id: participation_pressure_flag
+    tables: [participation]
+    match: '^was_pressure$'
+    set: {role: flag}
+
+  # ------------------------------------------------------------------ models
+  - id: expected_points
+    match: '(^ep$|epa$|_epa_|^(no_score|opp_fg|opp_safety|opp_td|fg|safety|td|extra_point|two_point_conversion)_prob$)'
+    set: {role: model, category: expected_points, side: offense, entity: play}
+  - id: win_probability
+    match: '(^wp$|^wpa$|_wp$|_wpa$|^vegas_|_wp_post$)'
+    set: {role: model, category: win_probability, side: offense, entity: play}
+  - id: passing_model
+    match: '(^cp$|^cpoe$|^xpass$|^pass_oe$|^xyac_|^passing_cpoe$)'
+    set: {role: model, category: passing_model, side: offense, entity: play}
+  - id: model_defense_perspective
+    match: '^def_wp$'
+    set: {side: defense}
+  - id: model_home_perspective
+    match: '(^total_home_|^home_wp|^vegas_home_wp|^home_wp_post$|^vegas_home_wpa$)'
+    set: {side: neutral, entity: team}
+    tags: ['perspective:home']
+  - id: model_away_perspective
+    match: '(^total_away_|^away_wp|^away_wp_post$)'
+    set: {side: neutral, entity: team}
+    tags: ['perspective:away']
+  - id: model_vegas_tag
+    match: '^vegas_'
+    tags: [vegas_adjusted]
+  - id: model_posteam_tag
+    tables: [pbp]
+    match: '^(ep|epa|wp|wpa|success|qb_epa|air_epa|yac_epa|comp_air_epa|comp_yac_epa|cp|cpoe|xpass|pass_oe)$'
+    tags: ['perspective:posteam']
+  - id: family_model_stats
+    tables: [player_stats_week, team_stats_week]
+    match: '^(passing|rushing|receiving)_(epa|cpoe)$'
+    set: {role: model, entity: null}
+  - id: family_model_stats_entity_player
+    tables: [player_stats_week]
+    match: '^(passing|rushing|receiving)_(epa|cpoe)$'
+    set: {entity: player}
+  - id: family_model_stats_entity_team
+    tables: [team_stats_week]
+    match: '^(passing|rushing|receiving)_(epa|cpoe)$'
+    set: {entity: team}
+  - id: family_model_category
+    tables: [player_stats_week, team_stats_week]
+    match: '^passing_(epa|cpoe)$'
+    set: {category: passing}
+  - id: family_model_category_rush
+    tables: [player_stats_week, team_stats_week]
+    match: '^rushing_epa$'
+    set: {category: rushing}
+  - id: family_model_category_rec
+    tables: [player_stats_week, team_stats_week]
+    match: '^receiving_epa$'
+    set: {category: receiving}
+  - id: stat_buckets
+    match: '^(passing|rushing|receiving)_(10|12|16|20|40)$'
+    tags: [bucket]
+  - id: derived_shares
+    match: '^(pacr|racr|wopr|target_share|air_yards_share)$'
+    set: {role: derived}
+
+  # ------------------------------------------------------------------ drives (pbp)
+  - id: drive_attrs
+    tables: [pbp]
+    match: '^(fixed_drive_result|drive_real_start_time|drive_play_count|drive_time_of_possession|drive_first_downs|drive_inside20|drive_ended_with_score|drive_quarter_start|drive_quarter_end|drive_yards_penalized|drive_start_transition|drive_end_transition|drive_game_clock_start|drive_game_clock_end|drive_start_yard_line|drive_end_yard_line)$'
+    set: {category: drive, entity: drive, side: offense}
+  - id: drive_dims
+    tables: [pbp]
+    match: '^(fixed_drive_result|drive_start_yard_line|drive_end_yard_line|drive_game_clock_start|drive_game_clock_end|drive_real_start_time|drive_time_of_possession)$'
+    set: {role: dimension}
+  - id: drive_time
+    tables: [pbp]
+    match: '^(drive_real_start_time|drive_time_of_possession|drive_game_clock_start|drive_game_clock_end|drive_quarter_start|drive_quarter_end)$'
+    set: {role: time}
+  - id: series_attrs
+    tables: [pbp]
+    match: '^(series_success|series_result)$'
+    set: {category: series, entity: drive, side: offense}
+  - id: series_result_dim
+    tables: [pbp]
+    match: '^series_result$'
+    set: {role: dimension}
+
+  # ------------------------------------------------------------------ game / venue / people
+  - id: betting
+    match: '(spread_line|total_line|moneyline|spread_odds|over_odds|under_odds)'
+    set: {role: betting, category: betting, entity: game, side: neutral}
+  - id: weather
+    match: '^(temp|wind|weather|roof|surface)$'
+    set: {category: weather, entity: venue, side: neutral}
+  - id: venue
+    match: '^(stadium|game_stadium|stadium_id)$'
+    set: {category: venue, entity: venue, side: neutral}
+  - id: coaching
+    match: '_coach$'
+    set: {role: dimension, category: coaching, entity: coach, side: neutral}
+  - id: officiating
+    match: '^(referee|official_name|official_id|position|jersey_number|game_key)$'
+    tables: [officials, schedules]
+    set: {category: officiating, entity: official, side: neutral}
+  - id: referee_pbp
+    match: '^referee$'
+    set: {role: dimension, category: officiating, entity: official, side: neutral}
+  - id: qb_starters
+    match: '^(home_qb_id|away_qb_id|home_qb_name|away_qb_name)$'
+    set: {category: passing, entity: player, side: offense}
+
+  # ------------------------------------------------------------------ roster / bio / branding
+  - id: positions
+    match: '^(position|position_group|ngs_position|ngs_position_group|pff_position|depth_chart_position|depth_position|pos_grp|pos_grp_id|pos_id|pos_name|pos_abb|pos_slot|pos_rank|formation|depth_team|jersey_number)$'
+    set: {role: dimension, category: roster, entity: player, side: neutral}
+  - id: depth_numeric
+    match: '^(pos_slot|pos_rank|depth_team|jersey_number)$'
+    set: {role: measure}
+  - id: roster_status
+    match: '^(status|status_description_abbr|ngs_status|ngs_status_short_description|pff_status|years_exp|years_of_experience|rookie_season|rookie_year|entry_year|last_season|latest_team)$'
+    set: {category: roster, entity: player, side: neutral}
+  - id: roster_status_text
+    match: '^ngs_status_short_description$'
+    set: {role: text}
+  - id: bio
+    match: '^(height|weight|birth_date|college|college_name|college_conference|draft_year|draft_round|draft_pick|draft_number|draft_club|draft_team)$'
+    set: {category: bio, entity: player, side: neutral}
+  - id: media
+    match: '(headshot|logo|wordmark|team_color)'
+    set: {role: media, side: neutral}
+  - id: media_player
+    match: 'headshot'
+    set: {category: bio, entity: player}
+  - id: branding
+    tables: [teams]
+    match: '^(team_name|team_nick|team_conf|team_division|team_color|team_color2|team_color3|team_color4|team_logo_wikipedia|team_logo_espn|team_wordmark|team_conference_logo|team_league_logo|team_logo_squared)$'
+    set: {category: branding, entity: team, side: neutral}
+  - id: legacy_depth_chart_cols
+    tables: [depth_charts]
+    match: '^(season|club_code|week|game_type|depth_team|last_name|first_name|football_name|formation|gsis_id|jersey_number|position|elias_id|depth_position|full_name)$'
+    tags: [legacy_depth_chart]
+  - id: ngs_depth_chart_cols
+    tables: [depth_charts]
+    match: '^(dt|team|player_name|espn_id|pos_grp_id|pos_grp|pos_id|pos_name|pos_abb|pos_slot|pos_rank)$'
+    tags: [ngs_depth_chart]
+
+  # ------------------------------------------------------------------ officials table overrides (after roster rules)
+  - id: officials_table
+    tables: [officials]
+    match: '^(official_name|official_id|position|jersey_number|game_key)$'
+    set: {category: officiating, entity: official, side: neutral}
+  - id: safety_scoring
+    match: '^(safety|safety_player_id|safety_player_name)$'
+    set: {category: scoring, side: defense}
+  - id: lateral_sack
+    match: '^lateral_sack_player_(id|name)$'
+    set: {category: pass_rush, side: defense}
+  - id: pbp_generic_player_cols
+    tables: [pbp]
+    match: '^(name|id|jersey_number)$'
+    set: {side: offense}
+
+  # ------------------------------------------------------------------ fantasy
+  - id: fantasy
+    match: '^fantasy'
+    set: {category: fantasy, side: offense}
+  - id: fantasy_points
+    match: '^fantasy_points'
+    set: {role: derived, entity: player}
+
+  # ------------------------------------------------------------------ leftovers
+  - id: touchback
+    match: '^touchback$'
+    set: {category: returns, side: special_teams}
+  - id: lateral_reception
+    match: '^lateral_reception$'
+    set: {category: receiving, side: offense}
+  - id: lateral_recovery
+    match: '^lateral_recovery$'
+    set: {category: turnovers, side: neutral}
+  - id: team_timeouts
+    tables: [team_stats_week]
+    match: '^timeouts$'
+    set: {category: game_state, side: neutral}
+
+  # ------------------------------------------------------------------ coaching staff (wikipedia)
+  - id: coaching_staff_table
+    tables: [coaching_staff]
+    match: '^(role|title|coach|is_interim|start_date|end_date|note|flags|source_url)$'
+    set: {category: coaching, entity: coach, side: neutral}
+  - id: coaching_staff_dims
+    tables: [coaching_staff]
+    match: '^(role|title|coach)$'
+    set: {role: dimension}
+  - id: coaching_staff_text
+    tables: [coaching_staff]
+    match: '^(note|flags)$'
+    set: {role: text}
+  - id: coaching_staff_url
+    tables: [coaching_staff]
+    match: '^source_url$'
+    set: {role: media}
+  - id: coaching_staff_side
+    tables: [coaching_staff]
+    match: '^(role|coach|title)$'
+    set: {side: neutral}
+
+  # ------------------------------------------------------------------ pbp: player attribution lateral tag
+  - id: lateral
+    match: '^lateral_'
+    tags: [lateral]

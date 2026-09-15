@@ -1,0 +1,17 @@
+# Connection for dbt. Same nfl/nfl role the Python loader uses; dbt-postgres wants the parts,
+# not a URL, so these come from NFL_DB_* (docker compose sets NFL_DB_HOST=postgres).
+nfl:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('NFL_DB_HOST', 'localhost') }}"
+      port: "{{ env_var('NFL_DB_PORT', '5432') | as_number }}"
+      user: "{{ env_var('NFL_DB_USER', 'nfl') }}"
+      password: "{{ env_var('NFL_DB_PASSWORD', 'nfl') }}"
+      dbname: "{{ env_var('NFL_DB_NAME', 'nfl') }}"
+      schema: clean
+      # 1 thread: models that reference the same parents (players, teams, games) take
+      # ShareRowExclusive locks on them while creating foreign keys and deadlock when run in
+      # parallel. The whole project builds in well under a minute anyway.
+      threads: 1

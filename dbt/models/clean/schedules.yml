@@ -1,0 +1,167 @@
+version: 2
+models:
+- name: schedules
+  description: 'Typed copy of staging.schedules: every column, same names, types fixed. Upserted by primary
+    key on every load.'
+  config:
+    unique_key: &id001
+    - game_id
+  constraints:
+  - type: primary_key
+    columns: *id001
+  columns:
+  - name: game_id
+    data_type: text
+    description: 'A human-readable game ID. It consists of: the season, an underscore, the two-digit week
+      number, an underscore, the away team, an underscore, the home team. This is the primary identifier
+      for a given game and is also used in various nflverse dataframes.'
+  - name: season
+    data_type: smallint
+    description: The year of the NFL season. This represents the whole season, so regular season games
+      that happen in January as well as playoff games will occur in the year after this number.
+  - name: game_type
+    data_type: text
+    description: What type of game? One of REG, WC, DIV, CON, SB
+  - name: week
+    data_type: smallint
+    description: The week of the NFL season the game occurs in. Please note that the `game_type` will
+      differ for weeks >= 18 because of the season expansion in 2021. Please use `game_type` to filter
+      for regular season or postseason.
+  - name: gameday
+    data_type: date
+    description: The date on which the game occurred.
+  - name: weekday
+    data_type: text
+    description: The day of the week on which the game occcured.
+  - name: gametime
+    data_type: time without time zone
+    description: The kickoff time of the game. This is represented in 24-hour time and the Eastern time
+      zone, regardless of what time zone the game was being played in.
+  - name: away_team
+    data_type: text
+    description: The away team.
+  - name: away_score
+    data_type: smallint
+    description: The number of points the away team scored. Is NA for games which haven't yet been played.
+  - name: home_team
+    data_type: text
+    description: The home team. Note that this contains the designated home team for games which no team
+      is playing at home such as Super Bowls or NFL International games.
+  - name: home_score
+    data_type: smallint
+    description: The number of points the home team scored. Is NA for games which haven't yet been played.
+  - name: location
+    data_type: text
+    description: Either Home if the home team is playing in their home stadium, or Neutral if the game
+      is being played at a neutral location. This still shows as Home for games between the Giants and
+      Jets even though they share the same home stadium.
+  - name: result
+    data_type: smallint
+    description: The number of points the home team scored minus the number of points the visiting team
+      scored. Equals h_score - v_score. Is NA for games which haven't yet been played. Convenient for
+      evaluating against the spread bets.
+  - name: total
+    data_type: smallint
+    description: The sum of each team's score in the game. Equals h_score + v_score. Is NA for games which
+      haven't yet been played. Convenient for evaluating over/under total bets.
+  - name: overtime
+    data_type: boolean
+    description: Binary indicator of whether or not game went to overtime.
+  - name: old_game_id
+    data_type: text
+    description: The old id for the game assigned by the NFL.
+  - name: gsis
+    data_type: integer
+    description: The id of the game issued by the NFL Game Statistics & Information System.
+  - name: nfl_detail_id
+    data_type: text
+    description: The id of the game issued by NFL Detail.
+  - name: pfr
+    data_type: text
+    description: The id of the game issued by [Pro-Football-Reference](https://www.pro-football-reference.com/)
+  - name: pff
+    data_type: integer
+    description: The id of the game issued by [Pro Football Focus](https://www.pff.com/)
+  - name: espn
+    data_type: text
+    description: The id of the game issued by [ESPN](https://www.espn.com/)
+  - name: ftn
+    data_type: integer
+    description: FTN Data game id.
+  - name: away_rest
+    data_type: smallint
+    description: Days of rest that the away team is coming off of.
+  - name: home_rest
+    data_type: smallint
+    description: Days of rest that the home team is coming off of.
+  - name: away_moneyline
+    data_type: smallint
+    description: Odds for away team to win the game.
+  - name: home_moneyline
+    data_type: smallint
+    description: Odds for home team to win the game.
+  - name: spread_line
+    data_type: double precision
+    description: The spread line for the game. A positive number means the home team was favored by that
+      many points, a negative number means the away team was favored by that many points. This lines up
+      with the result column.
+  - name: away_spread_odds
+    data_type: smallint
+    description: Odds for away team to cover the spread.
+  - name: home_spread_odds
+    data_type: smallint
+    description: Odds for home team to cover the spread.
+  - name: total_line
+    data_type: double precision
+    description: The total line for the game.
+  - name: under_odds
+    data_type: smallint
+    description: Odds that total score of game would be under the total_line.
+  - name: over_odds
+    data_type: smallint
+    description: Odds that total score of game would be over the total_ine.
+  - name: div_game
+    data_type: boolean
+    description: Binary indicator of whether or not game was played by 2 teams in the same division.
+  - name: roof
+    data_type: text
+    description: What was the status of the stadium's roof? One of outdoors, open, closed, dome
+  - name: surface
+    data_type: text
+    description: What type of ground the game was played on
+  - name: temp
+    data_type: smallint
+    description: The temperature at the stadium (for outdoors and open only)
+  - name: wind
+    data_type: smallint
+    description: The speed of the wind in miles/hour (for outdoors and open only)
+  - name: away_qb_id
+    data_type: text
+    description: GSIS Player ID for away team starting quarterback.
+  - name: home_qb_id
+    data_type: text
+    description: GSIS Player ID for home team starting quarterback.
+  - name: away_qb_name
+    data_type: text
+    description: Name of away team starting QB.
+  - name: home_qb_name
+    data_type: text
+    description: Name of home team starting QB.
+  - name: away_coach
+    data_type: text
+    description: Name of the head coach of the away team
+  - name: home_coach
+    data_type: text
+    description: Name of the head coach of the home team
+  - name: referee
+    data_type: text
+    description: Name of the game's referee (head official)
+  - name: stadium_id
+    data_type: text
+    description: ID of Stadium that game took place in
+  - name: stadium
+    data_type: text
+    description: Name of the stadium
+  - name: _loaded_at
+    data_type: timestamp with time zone
+    description: When this row was loaded into staging. Drives incremental upserts into clean.

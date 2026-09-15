@@ -1,0 +1,1205 @@
+version: 2
+models:
+- name: pbp
+  description: 'Typed copy of staging.pbp: every column, same names, types fixed. Upserted by primary
+    key on every load.'
+  config:
+    unique_key: &id001
+    - game_id
+    - play_id
+  constraints:
+  - type: primary_key
+    columns: *id001
+  columns:
+  - name: play_id
+    data_type: integer
+    description: Numeric play id that when used with game_id and drive provides the unique identifier
+      for a single play.
+  - name: game_id
+    data_type: text
+    description: Ten digit identifier for NFL game.
+  - name: old_game_id
+    data_type: text
+    description: Legacy NFL game ID.
+  - name: home_team
+    data_type: text
+    description: String abbreviation for the home team.
+  - name: away_team
+    data_type: text
+    description: String abbreviation for the away team.
+  - name: season_type
+    data_type: text
+    description: '''REG'' or ''POST'' indicating if the game belongs to regular or post season.'
+  - name: week
+    data_type: smallint
+    description: Season week.
+  - name: posteam
+    data_type: text
+    description: String abbreviation for the team with possession.
+  - name: posteam_type
+    data_type: text
+    description: String indicating whether the posteam team is home or away.
+  - name: defteam
+    data_type: text
+    description: String abbreviation for the team on defense.
+  - name: side_of_field
+    data_type: text
+    description: String abbreviation for which team's side of the field the team with possession is currently
+      on.
+  - name: yardline_100
+    data_type: smallint
+    description: Numeric distance in the number of yards from the opponent's endzone for the posteam.
+  - name: game_date
+    data_type: date
+    description: Date of the game.
+  - name: quarter_seconds_remaining
+    data_type: integer
+    description: Numeric seconds remaining in the quarter.
+  - name: half_seconds_remaining
+    data_type: integer
+    description: Numeric seconds remaining in the half.
+  - name: game_seconds_remaining
+    data_type: integer
+    description: Numeric seconds remaining in the game.
+  - name: game_half
+    data_type: text
+    description: String indicating which half the play is in, either Half1, Half2, or Overtime.
+  - name: quarter_end
+    data_type: boolean
+    description: Binary indicator for whether or not the row of the data is marking the end of a quarter.
+  - name: drive
+    data_type: smallint
+    description: Numeric drive number in the game.
+  - name: sp
+    data_type: boolean
+    description: Binary indicator for whether or not a score occurred on the play.
+  - name: qtr
+    data_type: smallint
+    description: Quarter of the game (5 is overtime).
+  - name: down
+    data_type: smallint
+    description: The down for the given play.
+  - name: goal_to_go
+    data_type: boolean
+    description: Binary indicator for whether or not the posteam is in a goal down situation.
+  - name: time
+    data_type: text
+    description: Time at start of play provided in string format as minutes:seconds remaining in the quarter.
+    quote: true
+  - name: yrdln
+    data_type: text
+    description: String indicating the current field position for a given play.
+  - name: ydstogo
+    data_type: smallint
+    description: Numeric yards in distance from either the first down marker or the endzone in goal down
+      situations.
+  - name: ydsnet
+    data_type: smallint
+    description: Numeric value for total yards gained on the given drive.
+  - name: desc
+    data_type: text
+    description: Detailed string description for the given play.
+    quote: true
+  - name: play_type
+    data_type: text
+    description: 'String indicating the type of play: pass (includes sacks), run (includes scrambles),
+      punt, field_goal, kickoff, extra_point, qb_kneel, qb_spike, no_play (timeouts and penalties), and
+      missing for rows indicating end of play.'
+  - name: yards_gained
+    data_type: smallint
+    description: Numeric yards gained (or lost) by the possessing team, excluding yards gained via fumble
+      recoveries and laterals.
+  - name: shotgun
+    data_type: boolean
+    description: Binary indicator for whether or not the play was in shotgun formation.
+  - name: no_huddle
+    data_type: boolean
+    description: Binary indicator for whether or not the play was in no_huddle formation.
+  - name: qb_dropback
+    data_type: boolean
+    description: Binary indicator for whether or not the QB dropped back on the play (pass attempt, sack,
+      or scrambled).
+  - name: qb_kneel
+    data_type: boolean
+    description: Binary indicator for whether or not the QB took a knee.
+  - name: qb_spike
+    data_type: boolean
+    description: Binary indicator for whether or not the QB spiked the ball.
+  - name: qb_scramble
+    data_type: boolean
+    description: Binary indicator for whether or not the QB scrambled.
+  - name: pass_length
+    data_type: text
+    description: 'String indicator for pass length: short or deep.'
+  - name: pass_location
+    data_type: text
+    description: 'String indicator for pass location: left, middle, or right.'
+  - name: air_yards
+    data_type: smallint
+    description: Numeric value for distance in yards perpendicular to the line of scrimmage at where the
+      targeted receiver either caught or didn't catch the ball.
+  - name: yards_after_catch
+    data_type: smallint
+    description: Numeric value for distance in yards perpendicular to the yard line where the receiver
+      made the reception to where the play ended.
+  - name: run_location
+    data_type: text
+    description: 'String indicator for location of run: left, middle, or right.'
+  - name: run_gap
+    data_type: text
+    description: 'String indicator for line gap of run: end, guard, or tackle'
+  - name: field_goal_result
+    data_type: text
+    description: 'String indicator for result of field goal attempt: made, missed, or blocked.'
+  - name: kick_distance
+    data_type: smallint
+    description: Numeric distance in yards for kickoffs, field goals, and punts.
+  - name: extra_point_result
+    data_type: text
+    description: 'String indicator for the result of the extra point attempt: good, failed, blocked, safety
+      (touchback in defensive endzone is 1 point apparently), or aborted.'
+  - name: two_point_conv_result
+    data_type: text
+    description: 'String indicator for result of two point conversion attempt: success, failure, safety
+      (touchback in defensive endzone is 1 point apparently), or return.'
+  - name: home_timeouts_remaining
+    data_type: smallint
+    description: Numeric timeouts remaining in the half for the home team.
+  - name: away_timeouts_remaining
+    data_type: smallint
+    description: Numeric timeouts remaining in the half for the away team.
+  - name: timeout
+    data_type: boolean
+    description: Binary indicator for whether or not a timeout was called by either team.
+  - name: timeout_team
+    data_type: text
+    description: String abbreviation for which team called the timeout.
+  - name: td_team
+    data_type: text
+    description: String abbreviation for which team scored the touchdown.
+  - name: td_player_name
+    data_type: text
+    description: String name of the player who scored a touchdown.
+  - name: td_player_id
+    data_type: text
+    description: Unique identifier of the player who scored a touchdown.
+  - name: posteam_timeouts_remaining
+    data_type: smallint
+    description: Number of timeouts remaining for the possession team.
+  - name: defteam_timeouts_remaining
+    data_type: smallint
+    description: Number of timeouts remaining for the team on defense.
+  - name: total_home_score
+    data_type: smallint
+    description: Score for the home team at the start of the play.
+  - name: total_away_score
+    data_type: smallint
+    description: Score for the away team at the start of the play.
+  - name: posteam_score
+    data_type: smallint
+    description: Score the posteam at the start of the play.
+  - name: defteam_score
+    data_type: smallint
+    description: Score the defteam at the start of the play.
+  - name: score_differential
+    data_type: smallint
+    description: Score differential between the posteam and defteam at the start of the play.
+  - name: posteam_score_post
+    data_type: smallint
+    description: Score for the posteam at the end of the play.
+  - name: defteam_score_post
+    data_type: smallint
+    description: Score for the defteam at the end of the play.
+  - name: score_differential_post
+    data_type: smallint
+    description: Score differential between the posteam and defteam at the end of the play.
+  - name: no_score_prob
+    data_type: double precision
+    description: Predicted probability of no score occurring for the rest of the half based on the expected
+      points model.
+  - name: opp_fg_prob
+    data_type: double precision
+    description: Predicted probability of the defteam scoring a FG next. 'Next' in this context means
+      the next score in the same game half.
+  - name: opp_safety_prob
+    data_type: double precision
+    description: Predicted probability of the defteam scoring a safety next. 'Next' in this context means
+      the next score in the same game half.
+  - name: opp_td_prob
+    data_type: double precision
+    description: Predicted probability of the defteam scoring a TD next. 'Next' in this context means
+      the next score in the same game half.
+  - name: fg_prob
+    data_type: double precision
+    description: Predicted probability of the posteam scoring a FG next. 'Next' in this context means
+      the next score in the same game half.
+  - name: safety_prob
+    data_type: double precision
+    description: Predicted probability of the posteam scoring a safety next. 'Next' in this context means
+      the next score in the same game half.
+  - name: td_prob
+    data_type: double precision
+    description: Predicted probability of the posteam scoring a TD next. 'Next' in this context means
+      the next score in the same game half.
+  - name: extra_point_prob
+    data_type: double precision
+    description: Predicted probability of the posteam scoring an extra point.
+  - name: two_point_conversion_prob
+    data_type: double precision
+    description: Predicted probability of the posteam scoring the two point conversion.
+  - name: ep
+    data_type: double precision
+    description: Using the scoring event probabilities, the estimated expected points with respect to
+      the possession team for the given play.
+  - name: epa
+    data_type: double precision
+    description: Expected points added (EPA) by the posteam for the given play.
+  - name: total_home_epa
+    data_type: double precision
+    description: Cumulative total EPA for the home team in the game so far.
+  - name: total_away_epa
+    data_type: double precision
+    description: Cumulative total EPA for the away team in the game so far.
+  - name: total_home_rush_epa
+    data_type: double precision
+    description: Cumulative total rushing EPA for the home team in the game so far.
+  - name: total_away_rush_epa
+    data_type: double precision
+    description: Cumulative total rushing EPA for the away team in the game so far.
+  - name: total_home_pass_epa
+    data_type: double precision
+    description: Cumulative total passing EPA for the home team in the game so far.
+  - name: total_away_pass_epa
+    data_type: double precision
+    description: Cumulative total passing EPA for the away team in the game so far.
+  - name: air_epa
+    data_type: double precision
+    description: EPA from the air yards alone. For completions this represents the actual value provided
+      through the air. For incompletions this represents the hypothetical value that could've been added
+      through the air if the pass was completed.
+  - name: yac_epa
+    data_type: double precision
+    description: EPA from the yards after catch alone. For completions this represents the actual value
+      provided after the catch. For incompletions this represents the difference between the hypothetical
+      air_epa and the play's raw observed EPA (how much the incomplete pass cost the posteam).
+  - name: comp_air_epa
+    data_type: double precision
+    description: EPA from the air yards alone only for completions.
+  - name: comp_yac_epa
+    data_type: double precision
+    description: EPA from the yards after catch alone only for completions.
+  - name: total_home_comp_air_epa
+    data_type: double precision
+    description: Cumulative total completions air EPA for the home team in the game so far.
+  - name: total_away_comp_air_epa
+    data_type: double precision
+    description: Cumulative total completions air EPA for the away team in the game so far.
+  - name: total_home_comp_yac_epa
+    data_type: double precision
+    description: Cumulative total completions yac EPA for the home team in the game so far.
+  - name: total_away_comp_yac_epa
+    data_type: double precision
+    description: Cumulative total completions yac EPA for the away team in the game so far.
+  - name: total_home_raw_air_epa
+    data_type: double precision
+    description: Cumulative total raw air EPA for the home team in the game so far.
+  - name: total_away_raw_air_epa
+    data_type: double precision
+    description: Cumulative total raw air EPA for the away team in the game so far.
+  - name: total_home_raw_yac_epa
+    data_type: double precision
+    description: Cumulative total raw yac EPA for the home team in the game so far.
+  - name: total_away_raw_yac_epa
+    data_type: double precision
+    description: Cumulative total raw yac EPA for the away team in the game so far.
+  - name: wp
+    data_type: double precision
+    description: Estimated win probabiity for the posteam given the current situation at the start of
+      the given play.
+  - name: def_wp
+    data_type: double precision
+    description: Estimated win probability for the defteam.
+  - name: home_wp
+    data_type: double precision
+    description: Estimated win probability for the home team.
+  - name: away_wp
+    data_type: double precision
+    description: Estimated win probability for the away team.
+  - name: wpa
+    data_type: double precision
+    description: Win probability added (WPA) for the posteam.
+  - name: vegas_wpa
+    data_type: double precision
+    description: 'Win probability added (WPA) for the posteam: spread_adjusted model.'
+  - name: vegas_home_wpa
+    data_type: double precision
+    description: 'Win probability added (WPA) for the home team: spread_adjusted model.'
+  - name: home_wp_post
+    data_type: double precision
+    description: Estimated win probability for the home team at the end of the play.
+  - name: away_wp_post
+    data_type: double precision
+    description: Estimated win probability for the away team at the end of the play.
+  - name: vegas_wp
+    data_type: double precision
+    description: Estimated win probabiity for the posteam given the current situation at the start of
+      the given play, incorporating pre-game Vegas line.
+  - name: vegas_home_wp
+    data_type: double precision
+    description: Estimated win probability for the home team incorporating pre-game Vegas line.
+  - name: total_home_rush_wpa
+    data_type: double precision
+    description: Cumulative total rushing WPA for the home team in the game so far.
+  - name: total_away_rush_wpa
+    data_type: double precision
+    description: Cumulative total rushing WPA for the away team in the game so far.
+  - name: total_home_pass_wpa
+    data_type: double precision
+    description: Cumulative total passing WPA for the home team in the game so far.
+  - name: total_away_pass_wpa
+    data_type: double precision
+    description: Cumulative total passing WPA for the away team in the game so far.
+  - name: air_wpa
+    data_type: double precision
+    description: WPA through the air (same logic as air_epa).
+  - name: yac_wpa
+    data_type: double precision
+    description: WPA from yards after the catch (same logic as yac_epa).
+  - name: comp_air_wpa
+    data_type: double precision
+    description: The air_wpa for completions only.
+  - name: comp_yac_wpa
+    data_type: double precision
+    description: The yac_wpa for completions only.
+  - name: total_home_comp_air_wpa
+    data_type: double precision
+    description: Cumulative total completions air WPA for the home team in the game so far.
+  - name: total_away_comp_air_wpa
+    data_type: double precision
+    description: Cumulative total completions air WPA for the away team in the game so far.
+  - name: total_home_comp_yac_wpa
+    data_type: double precision
+    description: Cumulative total completions yac WPA for the home team in the game so far.
+  - name: total_away_comp_yac_wpa
+    data_type: double precision
+    description: Cumulative total completions yac WPA for the away team in the game so far.
+  - name: total_home_raw_air_wpa
+    data_type: double precision
+    description: Cumulative total raw air WPA for the home team in the game so far.
+  - name: total_away_raw_air_wpa
+    data_type: double precision
+    description: Cumulative total raw air WPA for the away team in the game so far.
+  - name: total_home_raw_yac_wpa
+    data_type: double precision
+    description: Cumulative total raw yac WPA for the home team in the game so far.
+  - name: total_away_raw_yac_wpa
+    data_type: double precision
+    description: Cumulative total raw yac WPA for the away team in the game so far.
+  - name: punt_blocked
+    data_type: boolean
+    description: Binary indicator for if the punt was blocked.
+  - name: first_down_rush
+    data_type: boolean
+    description: Binary indicator for if a running play converted the first down.
+  - name: first_down_pass
+    data_type: boolean
+    description: Binary indicator for if a passing play converted the first down.
+  - name: first_down_penalty
+    data_type: boolean
+    description: Binary indicator for if a penalty converted the first down.
+  - name: third_down_converted
+    data_type: boolean
+    description: Binary indicator for if the first down was converted on third down.
+  - name: third_down_failed
+    data_type: boolean
+    description: Binary indicator for if the posteam failed to convert first down on third down.
+  - name: fourth_down_converted
+    data_type: boolean
+    description: Binary indicator for if the first down was converted on fourth down.
+  - name: fourth_down_failed
+    data_type: boolean
+    description: Binary indicator for if the posteam failed to convert first down on fourth down.
+  - name: incomplete_pass
+    data_type: boolean
+    description: Binary indicator for if the pass was incomplete.
+  - name: touchback
+    data_type: boolean
+    description: Binary indicator for if a touchback occurred on the play.
+  - name: interception
+    data_type: boolean
+    description: Binary indicator for if the pass was intercepted.
+  - name: punt_inside_twenty
+    data_type: boolean
+    description: Binary indicator for if the punt ended inside the twenty yard line.
+  - name: punt_in_endzone
+    data_type: boolean
+    description: Binary indicator for if the punt was in the endzone.
+  - name: punt_out_of_bounds
+    data_type: boolean
+    description: Binary indicator for if the punt went out of bounds.
+  - name: punt_downed
+    data_type: boolean
+    description: Binary indicator for if the punt was downed.
+  - name: punt_fair_catch
+    data_type: boolean
+    description: Binary indicator for if the punt was caught with a fair catch.
+  - name: kickoff_inside_twenty
+    data_type: boolean
+    description: Binary indicator for if the kickoff ended inside the twenty yard line.
+  - name: kickoff_in_endzone
+    data_type: boolean
+    description: Binary indicator for if the kickoff was in the endzone.
+  - name: kickoff_out_of_bounds
+    data_type: boolean
+    description: Binary indicator for if the kickoff went out of bounds.
+  - name: kickoff_downed
+    data_type: boolean
+    description: Binary indicator for if the kickoff was downed.
+  - name: kickoff_fair_catch
+    data_type: boolean
+    description: Binary indicator for if the kickoff was caught with a fair catch.
+  - name: fumble_forced
+    data_type: boolean
+    description: Binary indicator for if the fumble was forced.
+  - name: fumble_not_forced
+    data_type: boolean
+    description: Binary indicator for if the fumble was not forced.
+  - name: fumble_out_of_bounds
+    data_type: boolean
+    description: Binary indicator for if the fumble went out of bounds.
+  - name: solo_tackle
+    data_type: boolean
+    description: Binary indicator if the play had a solo tackle (could be multiple due to fumbles).
+  - name: safety
+    data_type: boolean
+    description: Binary indicator for whether or not a safety occurred.
+  - name: penalty
+    data_type: boolean
+    description: Binary indicator for whether or not a penalty occurred.
+  - name: tackled_for_loss
+    data_type: boolean
+    description: Binary indicator for whether or not a tackle for loss on a run play occurred.
+  - name: fumble_lost
+    data_type: boolean
+    description: Binary indicator for if the fumble was lost.
+  - name: own_kickoff_recovery
+    data_type: boolean
+    description: Binary indicator for if the kicking team recovered the kickoff.
+  - name: own_kickoff_recovery_td
+    data_type: boolean
+    description: Binary indicator for if the kicking team recovered the kickoff and scored a TD.
+  - name: qb_hit
+    data_type: boolean
+    description: Binary indicator if the QB was hit on the play.
+  - name: rush_attempt
+    data_type: boolean
+    description: Binary indicator for if the play was a run.
+  - name: pass_attempt
+    data_type: boolean
+    description: Binary indicator for if the play was a pass attempt (includes sacks).
+  - name: sack
+    data_type: boolean
+    description: Binary indicator for if the play ended in a sack.
+  - name: touchdown
+    data_type: boolean
+    description: Binary indicator for if the play resulted in a TD.
+  - name: pass_touchdown
+    data_type: boolean
+    description: Binary indicator for if the play resulted in a passing TD.
+  - name: rush_touchdown
+    data_type: boolean
+    description: Binary indicator for if the play resulted in a rushing TD.
+  - name: return_touchdown
+    data_type: boolean
+    description: 'Binary indicator for if the play resulted in a return TD. Returns may occur on any of:
+      interception, fumble, kickoff, punt, or blocked kicks.'
+  - name: extra_point_attempt
+    data_type: boolean
+    description: Binary indicator for extra point attempt.
+  - name: two_point_attempt
+    data_type: boolean
+    description: Binary indicator for two point conversion attempt.
+  - name: field_goal_attempt
+    data_type: boolean
+    description: Binary indicator for field goal attempt.
+  - name: kickoff_attempt
+    data_type: boolean
+    description: Binary indicator for kickoff.
+  - name: punt_attempt
+    data_type: boolean
+    description: Binary indicator for punts.
+  - name: fumble
+    data_type: boolean
+    description: Binary indicator for if a fumble occurred.
+  - name: complete_pass
+    data_type: boolean
+    description: Binary indicator for if the pass was completed.
+  - name: assist_tackle
+    data_type: boolean
+    description: Binary indicator for if an assist tackle occurred.
+  - name: lateral_reception
+    data_type: boolean
+    description: Binary indicator for if a lateral occurred on the reception.
+  - name: lateral_rush
+    data_type: boolean
+    description: Binary indicator for if a lateral occurred on a run.
+  - name: lateral_return
+    data_type: boolean
+    description: 'Binary indicator for if a lateral occurred on a return. Returns may occur on any of:
+      interception, fumble, kickoff, punt, or blocked kicks.'
+  - name: lateral_recovery
+    data_type: boolean
+    description: Binary indicator for if a lateral occurred on a fumble recovery.
+  - name: passer_player_id
+    data_type: text
+    description: Unique identifier for the player that attempted the pass.
+  - name: passer_player_name
+    data_type: text
+    description: String name for the player that attempted the pass.
+  - name: passing_yards
+    data_type: smallint
+    description: Numeric yards by the passer_player_name, including yards gained in pass plays with laterals.
+      This should equal official passing statistics.
+  - name: receiver_player_id
+    data_type: text
+    description: Unique identifier for the receiver that was targeted on the pass.
+  - name: receiver_player_name
+    data_type: text
+    description: String name for the targeted receiver.
+  - name: receiving_yards
+    data_type: smallint
+    description: Numeric yards by the receiver_player_name, excluding yards gained in pass plays with
+      laterals. This should equal official receiving statistics but could miss yards gained in pass plays
+      with laterals. Please see the description of `lateral_receiver_player_name` for further information.
+  - name: rusher_player_id
+    data_type: text
+    description: Unique identifier for the player that attempted the run.
+  - name: rusher_player_name
+    data_type: text
+    description: String name for the player that attempted the run.
+  - name: rushing_yards
+    data_type: smallint
+    description: Numeric yards by the rusher_player_name, excluding yards gained in rush plays with laterals.
+      This should equal official rushing statistics but could miss yards gained in rush plays with laterals.
+      Please see the description of `lateral_rusher_player_name` for further information.
+  - name: lateral_receiver_player_id
+    data_type: text
+    description: Unique identifier for the player that received the last(!) lateral on a pass play.
+  - name: lateral_receiver_player_name
+    data_type: text
+    description: String name for the player that received the last(!) lateral on a pass play. If there
+      were multiple laterals in the same play, this will only be the last player who received a lateral.
+      Please see <https://github.com/mrcaseb/nfl-data/tree/master/data/lateral_yards> for a list of plays
+      where multiple players recorded lateral receiving yards.
+  - name: lateral_receiving_yards
+    data_type: smallint
+    description: Numeric yards by the `lateral_receiver_player_name` in pass plays with laterals. Please
+      see the description of `lateral_receiver_player_name` for further information.
+  - name: lateral_rusher_player_id
+    data_type: text
+    description: Unique identifier for the player that received the last(!) lateral on a run play.
+  - name: lateral_rusher_player_name
+    data_type: text
+    description: String name for the player that received the last(!) lateral on a run play. If there
+      were multiple laterals in the same play, this will only be the last player who received a lateral.
+      Please see <https://github.com/mrcaseb/nfl-data/tree/master/data/lateral_yards> for a list of plays
+      where multiple players recorded lateral rushing yards.
+  - name: lateral_rushing_yards
+    data_type: smallint
+    description: Numeric yards by the `lateral_rusher_player_name` in run plays with laterals. Please
+      see the description of `lateral_rusher_player_name` for further information.
+  - name: lateral_sack_player_id
+    data_type: text
+    description: Unique identifier for the player that received the lateral on a sack.
+  - name: lateral_sack_player_name
+    data_type: text
+    description: String name for the player that received the lateral on a sack.
+  - name: interception_player_id
+    data_type: text
+    description: Unique identifier for the player that intercepted the pass.
+  - name: interception_player_name
+    data_type: text
+    description: String name for the player that intercepted the pass.
+  - name: lateral_interception_player_id
+    data_type: text
+    description: Unique indentifier for the player that received the lateral on an interception.
+  - name: lateral_interception_player_name
+    data_type: text
+    description: String name for the player that received the lateral on an interception.
+  - name: punt_returner_player_id
+    data_type: text
+    description: Unique identifier for the punt returner.
+  - name: punt_returner_player_name
+    data_type: text
+    description: String name for the punt returner.
+  - name: lateral_punt_returner_player_id
+    data_type: text
+    description: Unique identifier for the player that received the lateral on a punt return.
+  - name: lateral_punt_returner_player_name
+    data_type: text
+    description: String name for the player that received the lateral on a punt return.
+  - name: kickoff_returner_player_name
+    data_type: text
+    description: String name for the kickoff returner.
+  - name: kickoff_returner_player_id
+    data_type: text
+    description: Unique identifier for the kickoff returner.
+  - name: lateral_kickoff_returner_player_id
+    data_type: text
+    description: Unique identifier for the player that received the lateral on a kickoff return.
+  - name: lateral_kickoff_returner_player_name
+    data_type: text
+    description: String name for the player that received the lateral on a kickoff return.
+  - name: punter_player_id
+    data_type: text
+    description: Unique identifier for the punter.
+  - name: punter_player_name
+    data_type: text
+    description: String name for the punter.
+  - name: kicker_player_name
+    data_type: text
+    description: String name for the kicker on FG or kickoff.
+  - name: kicker_player_id
+    data_type: text
+    description: Unique identifier for the kicker on FG or kickoff.
+  - name: own_kickoff_recovery_player_id
+    data_type: text
+    description: Unique identifier for the player that recovered their own kickoff.
+  - name: own_kickoff_recovery_player_name
+    data_type: text
+    description: String name for the player that recovered their own kickoff.
+  - name: blocked_player_id
+    data_type: text
+    description: Unique identifier for the player that blocked the punt or FG.
+  - name: blocked_player_name
+    data_type: text
+    description: String name for the player that blocked the punt or FG.
+  - name: tackle_for_loss_1_player_id
+    data_type: text
+    description: Unique identifier for one of the potential players with the tackle for loss.
+  - name: tackle_for_loss_1_player_name
+    data_type: text
+    description: String name for one of the potential players with the tackle for loss.
+  - name: tackle_for_loss_2_player_id
+    data_type: text
+    description: Unique identifier for one of the potential players with the tackle for loss.
+  - name: tackle_for_loss_2_player_name
+    data_type: text
+    description: String name for one of the potential players with the tackle for loss.
+  - name: qb_hit_1_player_id
+    data_type: text
+    description: Unique identifier for one of the potential players that hit the QB. No sack as the QB
+      was not the ball carrier. For sacks please see `sack_player` or `half_sack_*_player`.
+  - name: qb_hit_1_player_name
+    data_type: text
+    description: String name for one of the potential players that hit the QB. No sack as the QB was not
+      the ball carrier. For sacks please see `sack_player` or `half_sack_*_player`.
+  - name: qb_hit_2_player_id
+    data_type: text
+    description: Unique identifier for one of the potential players that hit the QB. No sack as the QB
+      was not the ball carrier. For sacks please see `sack_player` or `half_sack_*_player`.
+  - name: qb_hit_2_player_name
+    data_type: text
+    description: String name for one of the potential players that hit the QB. No sack as the QB was not
+      the ball carrier. For sacks please see `sack_player` or `half_sack_*_player`.
+  - name: forced_fumble_player_1_team
+    data_type: text
+    description: Team of one of the players with a forced fumble.
+  - name: forced_fumble_player_1_player_id
+    data_type: text
+    description: Unique identifier of one of the players with a forced fumble.
+  - name: forced_fumble_player_1_player_name
+    data_type: text
+    description: String name of one of the players with a forced fumble.
+  - name: forced_fumble_player_2_team
+    data_type: text
+    description: Team of one of the players with a forced fumble.
+  - name: forced_fumble_player_2_player_id
+    data_type: text
+    description: Unique identifier of one of the players with a forced fumble.
+  - name: forced_fumble_player_2_player_name
+    data_type: text
+    description: String name of one of the players with a forced fumble.
+  - name: solo_tackle_1_team
+    data_type: text
+    description: Team of one of the players with a solo tackle.
+  - name: solo_tackle_2_team
+    data_type: text
+    description: Team of one of the players with a solo tackle.
+  - name: solo_tackle_1_player_id
+    data_type: text
+    description: Unique identifier of one of the players with a solo tackle.
+  - name: solo_tackle_2_player_id
+    data_type: text
+    description: Unique identifier of one of the players with a solo tackle.
+  - name: solo_tackle_1_player_name
+    data_type: text
+    description: String name of one of the players with a solo tackle.
+  - name: solo_tackle_2_player_name
+    data_type: text
+    description: String name of one of the players with a solo tackle.
+  - name: assist_tackle_1_player_id
+    data_type: text
+    description: Unique identifier of one of the players with a tackle assist.
+  - name: assist_tackle_1_player_name
+    data_type: text
+    description: String name of one of the players with a tackle assist.
+  - name: assist_tackle_1_team
+    data_type: text
+    description: Team of one of the players with a tackle assist.
+  - name: assist_tackle_2_player_id
+    data_type: text
+    description: Unique identifier of one of the players with a tackle assist.
+  - name: assist_tackle_2_player_name
+    data_type: text
+    description: String name of one of the players with a tackle assist.
+  - name: assist_tackle_2_team
+    data_type: text
+    description: Team of one of the players with a tackle assist.
+  - name: assist_tackle_3_player_id
+    data_type: text
+    description: Unique identifier of one of the players with a tackle assist.
+  - name: assist_tackle_3_player_name
+    data_type: text
+    description: String name of one of the players with a tackle assist.
+  - name: assist_tackle_3_team
+    data_type: text
+    description: Team of one of the players with a tackle assist.
+  - name: assist_tackle_4_player_id
+    data_type: text
+    description: Unique identifier of one of the players with a tackle assist.
+  - name: assist_tackle_4_player_name
+    data_type: text
+    description: String name of one of the players with a tackle assist.
+  - name: assist_tackle_4_team
+    data_type: text
+    description: Team of one of the players with a tackle assist.
+  - name: tackle_with_assist
+    data_type: boolean
+    description: Binary indicator for if there has been a tackle with assist.
+  - name: tackle_with_assist_1_player_id
+    data_type: text
+    description: Unique identifier of one of the players with a tackle with assist.
+  - name: tackle_with_assist_1_player_name
+    data_type: text
+    description: String name of one of the players with a tackle with assist.
+  - name: tackle_with_assist_1_team
+    data_type: text
+    description: Team of one of the players with a tackle with assist.
+  - name: tackle_with_assist_2_player_id
+    data_type: text
+    description: Unique identifier of one of the players with a tackle with assist.
+  - name: tackle_with_assist_2_player_name
+    data_type: text
+    description: String name of one of the players with a tackle with assist.
+  - name: tackle_with_assist_2_team
+    data_type: text
+    description: Team of one of the players with a tackle with assist.
+  - name: pass_defense_1_player_id
+    data_type: text
+    description: Unique identifier of one of the players with a pass defense.
+  - name: pass_defense_1_player_name
+    data_type: text
+    description: String name of one of the players with a pass defense.
+  - name: pass_defense_2_player_id
+    data_type: text
+    description: Unique identifier of one of the players with a pass defense.
+  - name: pass_defense_2_player_name
+    data_type: text
+    description: String name of one of the players with a pass defense.
+  - name: fumbled_1_team
+    data_type: text
+    description: Team of one of the first player with a fumble.
+  - name: fumbled_1_player_id
+    data_type: text
+    description: Unique identifier of the first player who fumbled on the play.
+  - name: fumbled_1_player_name
+    data_type: text
+    description: String name of one of the first player who fumbled on the play.
+  - name: fumbled_2_player_id
+    data_type: text
+    description: Unique identifier of the second player who fumbled on the play.
+  - name: fumbled_2_player_name
+    data_type: text
+    description: String name of one of the second player who fumbled on the play.
+  - name: fumbled_2_team
+    data_type: text
+    description: Team of one of the second player with a fumble.
+  - name: fumble_recovery_1_team
+    data_type: text
+    description: Team of one of the players with a fumble recovery.
+  - name: fumble_recovery_1_yards
+    data_type: smallint
+    description: Yards gained by one of the players with a fumble recovery.
+  - name: fumble_recovery_1_player_id
+    data_type: text
+    description: Unique identifier of one of the players with a fumble recovery.
+  - name: fumble_recovery_1_player_name
+    data_type: text
+    description: String name of one of the players with a fumble recovery.
+  - name: fumble_recovery_2_team
+    data_type: text
+    description: Team of one of the players with a fumble recovery.
+  - name: fumble_recovery_2_yards
+    data_type: smallint
+    description: Yards gained by one of the players with a fumble recovery.
+  - name: fumble_recovery_2_player_id
+    data_type: text
+    description: Unique identifier of one of the players with a fumble recovery.
+  - name: fumble_recovery_2_player_name
+    data_type: text
+    description: String name of one of the players with a fumble recovery.
+  - name: sack_player_id
+    data_type: text
+    description: Unique identifier of the player who recorded a solo sack.
+  - name: sack_player_name
+    data_type: text
+    description: String name of the player who recorded a solo sack.
+  - name: half_sack_1_player_id
+    data_type: text
+    description: Unique identifier of the first player who recorded half a sack.
+  - name: half_sack_1_player_name
+    data_type: text
+    description: String name of the first player who recorded half a sack.
+  - name: half_sack_2_player_id
+    data_type: text
+    description: Unique identifier of the second player who recorded half a sack.
+  - name: half_sack_2_player_name
+    data_type: text
+    description: String name of the second player who recorded half a sack.
+  - name: return_team
+    data_type: text
+    description: 'String abbreviation of the return team. Returns may occur on any of: interception, fumble,
+      kickoff, punt, or blocked kicks.'
+  - name: return_yards
+    data_type: smallint
+    description: 'Yards gained by the return team. Returns may occur on any of: interception, fumble,
+      kickoff, punt, or blocked kicks.'
+  - name: penalty_team
+    data_type: text
+    description: String abbreviation of the team with the penalty.
+  - name: penalty_player_id
+    data_type: text
+    description: Unique identifier for the player with the penalty.
+  - name: penalty_player_name
+    data_type: text
+    description: String name for the player with the penalty.
+  - name: penalty_yards
+    data_type: smallint
+    description: Yards gained (or lost) by the posteam from the penalty.
+  - name: replay_or_challenge
+    data_type: boolean
+    description: Binary indicator for whether or not a replay or challenge.
+  - name: replay_or_challenge_result
+    data_type: text
+    description: String indicating the result of the replay or challenge.
+  - name: penalty_type
+    data_type: text
+    description: String indicating the penalty type of the first penalty in the given play. Will be `NA`
+      if `desc` is missing the type.
+  - name: defensive_two_point_attempt
+    data_type: boolean
+    description: Binary indicator whether or not the defense was able to have an attempt on a two point
+      conversion, this results following a turnover.
+  - name: defensive_two_point_conv
+    data_type: boolean
+    description: Binary indicator whether or not the defense successfully scored on the two point conversion.
+  - name: defensive_extra_point_attempt
+    data_type: boolean
+    description: Binary indicator whether or not the defense was able to have an attempt on an extra point
+      attempt, this results following a blocked attempt that the defense recovers the ball.
+  - name: defensive_extra_point_conv
+    data_type: boolean
+    description: Binary indicator whether or not the defense successfully scored on an extra point attempt.
+  - name: safety_player_name
+    data_type: text
+    description: String name for the player who scored a safety.
+  - name: safety_player_id
+    data_type: text
+    description: Unique identifier for the player who scored a safety.
+  - name: season
+    data_type: smallint
+    description: 4 digit number indicating to which season the game belongs to.
+  - name: cp
+    data_type: double precision
+    description: Numeric value indicating the probability for a complete pass based on comparable game
+      situations.
+  - name: cpoe
+    data_type: double precision
+    description: For a single pass play this is 1 - cp when the pass was completed or 0 - cp when the
+      pass was incomplete. Analyzed for a whole game or season an indicator for the passer how much over
+      or under expectation his completion percentage was.
+  - name: series
+    data_type: smallint
+    description: 'Starts at 1, each new first down increments, numbers shared across both teams NA: kickoffs,
+      extra point/two point conversion attempts, non-plays, no posteam'
+  - name: series_success
+    data_type: boolean
+    description: '1: scored touchdown, gained enough yards for first down.'
+  - name: series_result
+    data_type: text
+    description: 'Possible values: First down, Touchdown, Opp touchdown, Field goal, Missed field goal,
+      Safety, Turnover, Punt, Turnover on downs, QB kneel, End of half'
+  - name: order_sequence
+    data_type: smallint
+    description: Column provided by NFL to fix out-of-order plays. Available 2011 and beyond with source
+      "nfl".
+  - name: start_time
+    data_type: text
+    description: Kickoff time in eastern time zone.
+  - name: time_of_day
+    data_type: timestamp with time zone
+    description: Time of day of play in UTC "HH:MM:SS" format. Available 2011 and beyond with source "nfl".
+  - name: stadium
+    data_type: text
+    description: Game site name.
+  - name: weather
+    data_type: text
+    description: String describing the weather including temperature, humidity and wind (direction and
+      speed). Doesn't change during the game!
+  - name: nfl_api_id
+    data_type: text
+    description: UUID of the game in the new NFL API.
+  - name: play_clock
+    data_type: text
+    description: Time on the playclock when the ball was snapped.
+  - name: play_deleted
+    data_type: boolean
+    description: Binary indicator for deleted plays.
+  - name: play_type_nfl
+    data_type: text
+    description: Play type as listed in the NFL source. Slightly different to the regular play_type variable.
+  - name: special_teams_play
+    data_type: boolean
+    description: Binary indicator for whether play is special teams play from NFL source. Available 2011
+      and beyond with source "nfl".
+  - name: st_play_type
+    data_type: text
+    description: Type of special teams play from NFL source. Available 2011 and beyond with source "nfl".
+  - name: end_clock_time
+    data_type: timestamp with time zone
+    description: Game time at the end of a given play.
+  - name: end_yard_line
+    data_type: text
+    description: String indicating the yardline at the end of the given play consisting of team half and
+      yard line number.
+  - name: fixed_drive
+    data_type: smallint
+    description: Manually created drive number in a game.
+  - name: fixed_drive_result
+    data_type: text
+    description: Manually created drive result.
+  - name: drive_real_start_time
+    data_type: timestamp with time zone
+    description: Local day time when the drive started (currently not used by the NFL and therefore mostly
+      'NA').
+  - name: drive_play_count
+    data_type: smallint
+    description: Numeric value of how many regular plays happened in a given drive.
+  - name: drive_time_of_possession
+    data_type: text
+    description: Time of possession in a given drive.
+  - name: drive_first_downs
+    data_type: smallint
+    description: Number of first downs in a given drive.
+  - name: drive_inside20
+    data_type: boolean
+    description: Binary indicator if the offense was able to get inside the opponents 20 yard line.
+  - name: drive_ended_with_score
+    data_type: boolean
+    description: Binary indicator the drive ended with a score.
+  - name: drive_quarter_start
+    data_type: smallint
+    description: Numeric value indicating in which quarter the given drive has started.
+  - name: drive_quarter_end
+    data_type: smallint
+    description: Numeric value indicating in which quarter the given drive has ended.
+  - name: drive_yards_penalized
+    data_type: smallint
+    description: Numeric value of how many yards the offense gained or lost through penalties in the given
+      drive.
+  - name: drive_start_transition
+    data_type: text
+    description: String indicating how the offense got the ball.
+  - name: drive_end_transition
+    data_type: text
+    description: String indicating how the offense lost the ball.
+  - name: drive_game_clock_start
+    data_type: text
+    description: Game time at the beginning of a given drive.
+  - name: drive_game_clock_end
+    data_type: text
+    description: Game time at the end of a given drive.
+  - name: drive_start_yard_line
+    data_type: text
+    description: String indicating where a given drive started consisting of team half and yard line number.
+  - name: drive_end_yard_line
+    data_type: text
+    description: String indicating where a given drive ended consisting of team half and yard line number.
+  - name: drive_play_id_started
+    data_type: integer
+    description: Play_id of the first play in the given drive.
+  - name: drive_play_id_ended
+    data_type: integer
+    description: Play_id of the last play in the given drive.
+  - name: away_score
+    data_type: smallint
+    description: Total points scored by the away team.
+  - name: home_score
+    data_type: smallint
+    description: Total points scored by the home team.
+  - name: location
+    data_type: text
+    description: Either 'Home' o 'Neutral' indicating if the home team played at home or at a neutral
+      site.
+  - name: result
+    data_type: smallint
+    description: Equals home_score - away_score and means the game outcome from the perspective of the
+      home team.
+  - name: total
+    data_type: smallint
+    description: Equals home_score + away_score and means the total points scored in the given game.
+  - name: spread_line
+    data_type: double precision
+    description: 'The closing spread line for the game. A positive number means the home team was favored
+      by that many points, a negative number means the away team was favored by that many points. (Source:
+      Pro-Football-Reference)'
+  - name: total_line
+    data_type: double precision
+    description: 'The closing total line for the game. (Source: Pro-Football-Reference)'
+  - name: div_game
+    data_type: boolean
+    description: Binary indicator for if the given game was a division game.
+  - name: roof
+    data_type: text
+    description: 'One of ''dome'', ''outdoors'', ''closed'', ''open'' indicating indicating the roof status
+      of the stadium the game was played in. (Source: Pro-Football-Reference)'
+  - name: surface
+    data_type: text
+    description: 'What type of ground the game was played on. (Source: Pro-Football-Reference)'
+  - name: temp
+    data_type: smallint
+    description: 'The temperature at the stadium only for ''roof'' = ''outdoors'' or ''open''.(Source:
+      Pro-Football-Reference)'
+  - name: wind
+    data_type: smallint
+    description: 'The speed of the wind in miles/hour only for ''roof'' = ''outdoors'' or ''open''. (Source:
+      Pro-Football-Reference)'
+  - name: home_coach
+    data_type: text
+    description: 'First and last name of the home team coach. (Source: Pro-Football-Reference)'
+  - name: away_coach
+    data_type: text
+    description: 'First and last name of the away team coach. (Source: Pro-Football-Reference)'
+  - name: stadium_id
+    data_type: text
+    description: 'ID of the stadium the game was played in. (Source: Pro-Football-Reference)'
+  - name: game_stadium
+    data_type: text
+    description: 'Name of the stadium the game was played in. (Source: Pro-Football-Reference)'
+  - name: aborted_play
+    data_type: boolean
+    description: Binary indicator if the play description indicates "Aborted".
+  - name: success
+    data_type: boolean
+    description: Binary indicator wheter epa > 0 in the given play.
+  - name: passer
+    data_type: text
+    description: Name of the dropback player (scrambles included) including plays with penalties.
+  - name: passer_jersey_number
+    data_type: smallint
+    description: Jersey number of the passer.
+  - name: rusher
+    data_type: text
+    description: Name of the rusher (no scrambles) including plays with penalties.
+  - name: rusher_jersey_number
+    data_type: smallint
+    description: Jersey number of the rusher.
+  - name: receiver
+    data_type: text
+    description: Name of the receiver including plays with penalties.
+  - name: receiver_jersey_number
+    data_type: smallint
+    description: Jersey number of the receiver.
+  - name: pass
+    data_type: boolean
+    description: Binary indicator if the play was a pass play (sacks and scrambles included).
+  - name: rush
+    data_type: boolean
+    description: Binary indicator if the play was a rushing play.
+  - name: first_down
+    data_type: boolean
+    description: Binary indicator if the play ended in a first down.
+  - name: special
+    data_type: boolean
+    description: Binary indicator if "play_type" is one of "extra_point", "field_goal", "kickoff", or
+      "punt".
+  - name: play
+    data_type: boolean
+    description: 'Binary indicator: 1 if the play was a ''normal'' play (including penalties), 0 otherwise.'
+  - name: passer_id
+    data_type: text
+    description: ID of the player in the 'passer' column.
+  - name: rusher_id
+    data_type: text
+    description: ID of the player in the 'rusher' column.
+  - name: receiver_id
+    data_type: text
+    description: ID of the player in the 'receiver' column.
+  - name: name
+    data_type: text
+    description: Name of the 'passer' if it is not 'NA', or name of the 'rusher' otherwise.
+  - name: jersey_number
+    data_type: smallint
+    description: Jersey number of the player listed in the 'name' column.
+  - name: id
+    data_type: text
+    description: ID of the player in the 'name' column.
+  - name: fantasy_player_name
+    data_type: text
+    description: Name of the rusher on rush plays or receiver on pass plays (from official stats).
+  - name: fantasy_player_id
+    data_type: text
+    description: ID of the rusher on rush plays or receiver on pass plays (from official stats).
+  - name: fantasy
+    data_type: text
+    description: Name of the rusher on rush plays or receiver on pass plays.
+  - name: fantasy_id
+    data_type: text
+    description: ID of the rusher on rush plays or receiver on pass plays.
+  - name: out_of_bounds
+    data_type: boolean
+    description: 1 if play description contains ran ob, pushed ob, or sacked ob; 0 otherwise.
+  - name: home_opening_kickoff
+    data_type: boolean
+    description: 1 if the home team received the opening kickoff, 0 otherwise.
+  - name: qb_epa
+    data_type: double precision
+    description: Gives QB credit for EPA for up to the point where a receiver lost a fumble after a completed
+      catch and makes EPA work more like passing yards on plays with fumbles.
+  - name: xyac_epa
+    data_type: double precision
+    description: Expected value of EPA gained after the catch, starting from where the catch was made.
+      Zero yards after the catch would be listed as zero EPA.
+  - name: xyac_mean_yardage
+    data_type: double precision
+    description: Average expected yards after the catch based on where the ball was caught.
+  - name: xyac_median_yardage
+    data_type: smallint
+    description: Median expected yards after the catch based on where the ball was caught.
+  - name: xyac_success
+    data_type: double precision
+    description: Probability play earns positive EPA (relative to where play started) based on where ball
+      was caught.
+  - name: xyac_fd
+    data_type: double precision
+    description: Probability play earns a first down based on where the ball was caught.
+  - name: xpass
+    data_type: double precision
+    description: Probability of dropback scaled from 0 to 1.
+  - name: pass_oe
+    data_type: double precision
+    description: Dropback percent over expected on a given play scaled from 0 to 100.
+  - name: _loaded_at
+    data_type: timestamp with time zone
+    description: When this row was loaded into staging. Drives incremental upserts into clean.

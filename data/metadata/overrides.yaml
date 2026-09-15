@@ -1,0 +1,299 @@
+# Per-column corrections. Applied after rules.yaml; `description` wins over nflverse dictionaries.
+#   - table: pbp            (or tables: [a, b]; omit both to apply to every table)
+#     column: epa
+#     description: ...
+#     set: {role: model, side: offense, entity: play, category: expected_points}
+#     tags: [perspective:posteam]
+columns:
+  # -------------------------------------------------------------- pipeline
+  - column: _loaded_at
+    description: UTC timestamp when this row was written into staging by the nfl_pipeline loader. Rows in the same season partition share a value; clean keeps it to drive incremental upserts.
+  - tables: [player_stats_week, rosters, rosters_weekly, depth_charts, coaching_staff]
+    column: _row_id
+    description: md5 of the identifying columns; surrogate primary key in clean for tables whose source key is not unique or has NULLs (player_stats_week, rosters, rosters_weekly, depth_charts, coaching_staff).
+    set: {role: system, category: system, side: null, entity: null}
+
+  # -------------------------------------------------------------- shared game keys
+  - tables: [player_stats_week, team_stats_week]
+    column: game_id
+    description: nflverse game id (season_week_away_home). Joins to schedules.game_id and pbp.game_id.
+  - table: participation
+    column: season
+    description: NFL season the play belongs to. Not present in the nflverse file; stamped by the loader from the requested season.
+  - table: schedules
+    column: ftn
+    description: FTN Data game id.
+
+  # -------------------------------------------------------------- stat buckets (player + team box scores)
+  - tables: [player_stats_week, team_stats_week]
+    column: passing_10
+    description: Completions of 10 or more yards.
+  - tables: [player_stats_week, team_stats_week]
+    column: passing_16
+    description: Completions of 16 or more yards.
+  - tables: [player_stats_week, team_stats_week]
+    column: passing_20
+    description: Completions of 20 or more yards.
+  - tables: [player_stats_week, team_stats_week]
+    column: passing_40
+    description: Completions of 40 or more yards.
+  - tables: [player_stats_week, team_stats_week]
+    column: rushing_10
+    description: Rushes of 10 or more yards.
+  - tables: [player_stats_week, team_stats_week]
+    column: rushing_12
+    description: Rushes of 12 or more yards.
+  - tables: [player_stats_week, team_stats_week]
+    column: rushing_20
+    description: Rushes of 20 or more yards.
+  - tables: [player_stats_week, team_stats_week]
+    column: rushing_40
+    description: Rushes of 40 or more yards.
+  - tables: [player_stats_week, team_stats_week]
+    column: receiving_10
+    description: Receptions of 10 or more yards.
+  - tables: [player_stats_week, team_stats_week]
+    column: receiving_16
+    description: Receptions of 16 or more yards.
+  - tables: [player_stats_week, team_stats_week]
+    column: receiving_20
+    description: Receptions of 20 or more yards.
+  - tables: [player_stats_week, team_stats_week]
+    column: receiving_40
+    description: Receptions of 40 or more yards.
+
+  # -------------------------------------------------------------- defensive blocks / conversions
+  - tables: [player_stats_week, team_stats_week]
+    column: def_punt_blocks
+    description: Punts blocked by the defense/special teams unit.
+  - tables: [player_stats_week, team_stats_week]
+    column: def_pat_blocks
+    description: Extra-point attempts blocked.
+  - tables: [player_stats_week, team_stats_week]
+    column: def_fg_blocks
+    description: Field-goal attempts blocked.
+  - tables: [player_stats_week, team_stats_week]
+    column: def_2pt_atts
+    description: Defensive two-point conversion attempts (returns of a failed offensive conversion).
+  - tables: [player_stats_week, team_stats_week]
+    column: def_2pt_made
+    description: Defensive two-point conversions scored.
+
+  # -------------------------------------------------------------- fumbles
+  - tables: [player_stats_week, team_stats_week]
+    column: fumbles_forced_by_opp
+    description: Own fumbles that were forced by an opponent.
+  - tables: [player_stats_week, team_stats_week]
+    column: fumbles_not_forced
+    description: Own fumbles that were not forced (unforced, e.g. mishandled snap or exchange).
+  - tables: [player_stats_week, team_stats_week]
+    column: fumbles_out_of_bounds
+    description: Own fumbles that went out of bounds.
+  - tables: [player_stats_week, team_stats_week]
+    column: fumbles_total
+    description: Total own fumbles across passing, rushing, receiving and special teams.
+  - tables: [player_stats_week, team_stats_week]
+    column: fumbles_lost_total
+    description: Total own fumbles recovered by the opponent.
+
+  # -------------------------------------------------------------- punting
+  - tables: [player_stats_week, team_stats_week]
+    column: pt_att
+    description: Punts attempted.
+  - tables: [player_stats_week, team_stats_week]
+    column: pt_blocked
+    description: Punts blocked.
+  - tables: [player_stats_week, team_stats_week]
+    column: pt_long
+    description: Longest punt (yards).
+  - tables: [player_stats_week, team_stats_week]
+    column: pt_yards
+    description: Gross punting yards.
+  - tables: [player_stats_week, team_stats_week]
+    column: pt_inside_20
+    description: Punts downed or fair-caught inside the opponent 20.
+  - tables: [player_stats_week, team_stats_week]
+    column: pt_out_of_bounds
+    description: Punts that went out of bounds.
+  - tables: [player_stats_week, team_stats_week]
+    column: pt_downed
+    description: Punts downed by the punting team.
+  - tables: [player_stats_week, team_stats_week]
+    column: pt_touchback
+    description: Punts resulting in a touchback.
+  - tables: [player_stats_week, team_stats_week]
+    column: pt_fair_caught
+    description: Punts fair-caught by the returner.
+  - tables: [player_stats_week, team_stats_week]
+    column: pt_returned
+    description: Punts returned by the receiving team.
+  - tables: [player_stats_week, team_stats_week]
+    column: pt_return_yards
+    description: Return yards allowed on punts.
+  - tables: [player_stats_week, team_stats_week]
+    column: pt_return_tds
+    description: Return touchdowns allowed on punts.
+  - tables: [player_stats_week, team_stats_week]
+    column: pt_net_yards
+    description: Net punting yards (gross yards minus return yards and touchbacks).
+
+  # -------------------------------------------------------------- teams (no nflverse dictionary)
+  - table: teams
+    column: team_abbr
+    description: nflverse team abbreviation (e.g. KC, LA). Primary key; joins to team columns in every other table. Includes historical abbreviations for relocated franchises.
+  - table: teams
+    column: team_name
+    description: Full team name (city + nickname).
+  - table: teams
+    column: team_id
+    description: NFL numeric team id.
+  - table: teams
+    column: team_nick
+    description: Team nickname (e.g. Chiefs).
+  - table: teams
+    column: team_conf
+    description: Conference (AFC/NFC).
+  - table: teams
+    column: team_division
+    description: Division (e.g. AFC West).
+  - table: teams
+    column: team_color
+    description: Primary team color, hex.
+  - table: teams
+    column: team_color2
+    description: Secondary team color, hex.
+  - table: teams
+    column: team_color3
+    description: Tertiary team color, hex.
+  - table: teams
+    column: team_color4
+    description: Quaternary team color, hex.
+  - table: teams
+    column: team_logo_wikipedia
+    description: URL of team logo (Wikipedia).
+  - table: teams
+    column: team_logo_espn
+    description: URL of team logo (ESPN).
+  - table: teams
+    column: team_wordmark
+    description: URL of team wordmark image.
+  - table: teams
+    column: team_conference_logo
+    description: URL of conference logo.
+  - table: teams
+    column: team_league_logo
+    description: URL of NFL league logo.
+  - table: teams
+    column: team_logo_squared
+    description: URL of square-cropped team logo.
+
+  # -------------------------------------------------------------- officials (no nflverse dictionary)
+  - table: officials
+    column: game_id
+    description: nflverse game id (season_week_away_home). Joins to schedules.game_id.
+  - table: officials
+    column: game_key
+    description: NFL internal game key for the game.
+  - table: officials
+    column: official_name
+    description: Official's full name.
+  - table: officials
+    column: position
+    description: Officiating position (Referee, Umpire, Down Judge, Line Judge, Field Judge, Side Judge, Back Judge, Replay Official).
+  - table: officials
+    column: jersey_number
+    description: Official's jersey number.
+  - table: officials
+    column: official_id
+    description: NFL official id.
+  - table: officials
+    column: season
+    description: NFL season.
+  - table: officials
+    column: season_type
+    description: REG or POST.
+  - table: officials
+    column: week
+    description: Week of the season.
+
+  # -------------------------------------------------------------- legacy depth chart format (through 2024)
+  - table: depth_charts
+    column: season
+    description: NFL season (legacy weekly format only; NULL for NGS snapshot rows).
+  - table: depth_charts
+    column: club_code
+    description: Team abbreviation (legacy weekly format; see `team` for NGS snapshot rows).
+  - table: depth_charts
+    column: week
+    description: Week the depth chart applies to (legacy weekly format).
+  - table: depth_charts
+    column: game_type
+    description: REG or POST (legacy weekly format).
+  - table: depth_charts
+    column: depth_team
+    description: Depth chart rank at the position, 1 = starter (legacy weekly format).
+  - table: depth_charts
+    column: last_name
+    description: Player last name (legacy weekly format).
+  - table: depth_charts
+    column: first_name
+    description: Player first name (legacy weekly format).
+  - table: depth_charts
+    column: football_name
+    description: Player's preferred/football first name (legacy weekly format).
+  - table: depth_charts
+    column: formation
+    description: Unit the slot belongs to - Offense, Defense or Special Teams (legacy weekly format).
+  - table: depth_charts
+    column: gsis_id
+    description: Player GSIS id (legacy weekly format). Joins to players.gsis_id.
+  - table: depth_charts
+    column: jersey_number
+    description: Player jersey number (legacy weekly format).
+  - table: depth_charts
+    column: position
+    description: Player's listed roster position (legacy weekly format).
+  - table: depth_charts
+    column: elias_id
+    description: Elias Sports Bureau player id (legacy weekly format).
+  - table: depth_charts
+    column: depth_position
+    description: Depth chart slot position, e.g. LWR, RCB (legacy weekly format).
+  - table: depth_charts
+    column: full_name
+    description: Player full name (legacy weekly format).
+
+  # -------------------------------------------------------------- coaching_staff (no external dictionary)
+  - table: coaching_staff
+    column: season
+    description: NFL season the staff entry applies to.
+  - table: coaching_staff
+    column: team
+    description: nflverse team abbreviation.
+  - table: coaching_staff
+    column: role
+    description: Normalized role - head_coach, offensive_coordinator, defensive_coordinator or special_teams_coordinator. A combined title (e.g. interim head coach/special teams coordinator) yields one row per role.
+  - table: coaching_staff
+    column: title
+    description: Title exactly as listed on Wikipedia (e.g. "Interim offensive coordinator", "Co-defensive coordinator").
+  - table: coaching_staff
+    column: coach
+    description: Coach's name as listed on Wikipedia.
+  - table: coaching_staff
+    column: is_interim
+    description: TRUE when the title contains interim/acting.
+  - table: coaching_staff
+    column: start_date
+    description: First day this person held the role, when a mid-season change was noted; NULL means from the start of the season.
+  - table: coaching_staff
+    column: end_date
+    description: Day this person left the role (exclusive), when a mid-season change was noted; NULL means through the end of the season.
+  - table: coaching_staff
+    column: note
+    description: Free-text note captured from Wikipedia (e.g. "fired on November 5").
+  - table: coaching_staff
+    column: flags
+    description: Parser quality flags - undated_change, ambiguous_multiple, date_kind_guessed, or override when the row comes from data/coaching_staff_overrides.csv.
+  - table: coaching_staff
+    column: source_url
+    description: Wikipedia article the row was parsed from.

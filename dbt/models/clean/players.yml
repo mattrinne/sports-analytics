@@ -1,0 +1,133 @@
+version: 2
+models:
+- name: players
+  description: 'Typed copy of staging.players: every column, same names, types fixed. Upserted by primary
+    key on every load.'
+  config:
+    unique_key: &id001
+    - gsis_id
+  constraints:
+  - type: primary_key
+    columns: *id001
+  columns:
+  - name: gsis_id
+    data_type: text
+    description: GSIS ID for player. Primary key for all data.
+  - name: display_name
+    data_type: text
+    description: Full name of player
+  - name: common_first_name
+    data_type: text
+    description: Common first name of player
+  - name: first_name
+    data_type: text
+    description: First name of player
+  - name: last_name
+    data_type: text
+    description: Last name of player
+  - name: short_name
+    data_type: text
+    description: Player short name (i.e. "F.Last")
+  - name: football_name
+    data_type: text
+    description: Common player name (i.e. in most cases common_first_name last_name)
+  - name: suffix
+    data_type: text
+    description: Name suffix of player
+  - name: esb_id
+    data_type: text
+    description: ESB ID of player
+  - name: nfl_id
+    data_type: text
+    description: NFL ID of player (this is used in Big Data Bowl Data)
+  - name: pfr_id
+    data_type: text
+    description: Pro-Football-Reference ID for player
+  - name: pff_id
+    data_type: text
+    description: PFF ID for player
+  - name: otc_id
+    data_type: text
+    description: Over the Cap ID for player
+  - name: espn_id
+    data_type: text
+    description: ESPN ID for player
+  - name: smart_id
+    data_type: text
+    description: SMART ID for player (that's in raw pbp. It includes a hashed ESB_ID)
+  - name: birth_date
+    data_type: date
+    description: Player birth date (sourced from NFL. Other sources may differ)
+  - name: position_group
+    data_type: text
+    description: Postion group of player as listed by NFL
+  - name: position
+    data_type: text
+    description: Position of player as listed by NFL
+  - name: ngs_position_group
+    data_type: text
+    description: Position group of player as listed by Next Gen Stats
+  - name: ngs_position
+    data_type: text
+    description: Position of player as listed by Next Gen Stats
+  - name: height
+    data_type: smallint
+    description: Height of player (inches)
+  - name: weight
+    data_type: smallint
+    description: Weight of player (lbs)
+  - name: headshot
+    data_type: text
+    description: NFL headshot url for player
+  - name: college_name
+    data_type: text
+    description: Official college (usually the last one attended)
+  - name: college_conference
+    data_type: text
+    description: Conference of college
+  - name: jersey_number
+    data_type: text
+    description: Latest jersey number of player
+  - name: rookie_season
+    data_type: smallint
+    description: 4 digit number indicating which season the player was a rookie
+  - name: last_season
+    data_type: smallint
+    description: 4 digit number indicating which season the player was active the last time
+  - name: latest_team
+    data_type: text
+    description: Latest team the player was listed in
+  - name: status
+    data_type: text
+    description: 'Roster status: describes things like Active, Inactive, Injured Reserve, Practice Squad
+      etc'
+  - name: ngs_status
+    data_type: text
+    description: Next Gen Stats variant of status
+  - name: ngs_status_short_description
+    data_type: text
+    description: Next Gen Stats status description
+  - name: years_of_experience
+    data_type: smallint
+    description: Years played in league
+  - name: pff_position
+    data_type: text
+    description: Position of player as listed by PFF
+  - name: pff_status
+    data_type: text
+    description: Roster status as listed by PFF
+  - name: draft_year
+    data_type: smallint
+    description: Year that player was drafted
+  - name: draft_round
+    data_type: smallint
+    description: Round that player was drafted in
+  - name: draft_pick
+    data_type: smallint
+    description: Pick number of player
+  - name: draft_team
+    data_type: text
+    description: Team that drafted player
+  - name: _loaded_at
+    data_type: timestamp with time zone
+    description: When this row was loaded into staging. Drives incremental upserts into clean.

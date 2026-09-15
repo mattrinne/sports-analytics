@@ -1,0 +1,19 @@
+version: 2
+
+sources:
+  - name: staging
+    description: "Landing zone written by nfl_pipeline (schema-on-write, one partition per season). Truncatable: clean.* holds the durable copy."
+    schema: staging
+    tables:
+      - name: schedules
+      - name: teams
+      - name: players
+      - name: rosters
+      - name: rosters_weekly
+      - name: depth_charts
+      - name: team_stats_week
+      - name: player_stats_week
+      - name: pbp
+      - name: participation
+      - name: coaching_staff
+      - name: officials

@@ -1,0 +1,98 @@
+version: 2
+models:
+- name: depth_charts
+  description: 'Typed copy of staging.depth_charts: every column, same names, types fixed. Upserted by
+    primary key on every load.'
+  config:
+    unique_key: &id001
+    - _row_id
+  constraints:
+  - type: primary_key
+    columns: *id001
+  columns:
+  - name: _row_id
+    data_type: text
+    description: md5 of the identifying columns; surrogate primary key for tables whose source key is
+      not unique or contains NULLs.
+  - name: season
+    data_type: smallint
+    description: NFL season (legacy weekly format only; NULL for NGS snapshot rows).
+  - name: club_code
+    data_type: text
+    description: Team abbreviation (legacy weekly format; see `team` for NGS snapshot rows).
+  - name: week
+    data_type: smallint
+    description: Week the depth chart applies to (legacy weekly format).
+  - name: game_type
+    data_type: text
+    description: REG or POST (legacy weekly format).
+  - name: depth_team
+    data_type: text
+    description: Depth chart rank at the position, 1 = starter (legacy weekly format).
+  - name: last_name
+    data_type: text
+    description: Player last name (legacy weekly format).
+  - name: first_name
+    data_type: text
+    description: Player first name (legacy weekly format).
+  - name: football_name
+    data_type: text
+    description: Player's preferred/football first name (legacy weekly format).
+  - name: formation
+    data_type: text
+    description: Unit the slot belongs to - Offense, Defense or Special Teams (legacy weekly format).
+  - name: gsis_id
+    data_type: text
+    description: Player GSIS id (legacy weekly format). Joins to players.gsis_id.
+  - name: jersey_number
+    data_type: text
+    description: Player jersey number (legacy weekly format).
+  - name: position
+    data_type: text
+    description: Player's listed roster position (legacy weekly format).
+  - name: elias_id
+    data_type: text
+    description: Elias Sports Bureau player id (legacy weekly format).
+  - name: depth_position
+    data_type: text
+    description: Depth chart slot position, e.g. LWR, RCB (legacy weekly format).
+  - name: full_name
+    data_type: text
+    description: Player full name (legacy weekly format).
+  - name: _loaded_at
+    data_type: timestamp with time zone
+    description: When this row was loaded into staging. Drives incremental upserts into clean.
+  - name: dt
+    data_type: timestamp with time zone
+    description: The timestamp (ISO8601-formatted text) indicating when the data record was loaded. Can
+      be used to assign the data set to a specific point in time during the season.
+  - name: team
+    data_type: text
+    description: Team that depth chart belongs to
+  - name: player_name
+    data_type: text
+    description: Full name of player
+  - name: espn_id
+    data_type: text
+    description: ESPN Player ID
+  - name: pos_grp_id
+    data_type: text
+    description: Player position group identifier
+  - name: pos_grp
+    data_type: text
+    description: 'Player position group: formation of offense, defense, or special teams'
+  - name: pos_id
+    data_type: text
+    description: Player position identifier
+  - name: pos_name
+    data_type: text
+    description: Player position name
+  - name: pos_abb
+    data_type: text
+    description: Player position abbreviation
+  - name: pos_slot
+    data_type: smallint
+    description: A number assigned to each position in a formation
+  - name: pos_rank
+    data_type: smallint
+    description: Player's rank on depth chart grouped by pos_slot

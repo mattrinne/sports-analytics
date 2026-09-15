@@ -1,0 +1,112 @@
+version: 2
+models:
+- name: participation
+  description: 'Typed copy of staging.participation: every column, same names, types fixed. Upserted by
+    primary key on every load.'
+  config:
+    unique_key: &id001
+    - nflverse_game_id
+    - play_id
+  constraints:
+  - type: primary_key
+    columns: *id001
+  columns:
+  - name: nflverse_game_id
+    data_type: text
+    description: nflverse identifier for games. Format is season, week, away_team, home_team
+  - name: old_game_id
+    data_type: text
+    description: Legacy NFL game ID.
+  - name: play_id
+    data_type: integer
+    description: Numeric play id that when used with game_id and drive provides the unique identifier
+      for a single play.
+  - name: possession_team
+    data_type: text
+    description: String abbreviation for the team with possession.
+  - name: offense_formation
+    data_type: text
+    description: Formation the offense lines up in to snap the ball.
+  - name: offense_personnel
+    data_type: text
+    description: The positions of the offensive personnel lined up on the field for a play.
+  - name: defenders_in_box
+    data_type: smallint
+    description: Number of defensive players lined up in the box at the snap.
+  - name: defense_personnel
+    data_type: text
+    description: The positions of the defensive personnel lined up on the field for a play.
+  - name: number_of_pass_rushers
+    data_type: smallint
+    description: Number of defensive player who rushed the passer.
+  - name: players_on_play
+    data_type: text
+    description: A list of every player on the field for the play, by gsis_id
+  - name: offense_players
+    data_type: text
+    description: A list of every offensive player on the field for the play, by gsis_id
+  - name: defense_players
+    data_type: text
+    description: A list of every defensive player on the field for the play, by gsis_id
+  - name: n_offense
+    data_type: smallint
+    description: Number of offensive players on the field for the play
+  - name: n_defense
+    data_type: smallint
+    description: Number of defensive players on the field for the play
+  - name: ngs_air_yards
+    data_type: double precision
+    description: Legacy column. For 2023 and prior years, reflects the distance (in yards) that the ball
+      traveled in the air on a given passing play as tracked by NGS. Is NA for 2024 on--we advise instead
+      using the air_yards column from nflreadr::load_pbp() moving forward.
+  - name: time_to_throw
+    data_type: double precision
+    description: Duration (in seconds) between the time of the ball being snapped and the time of release
+      of a pass attempt
+  - name: was_pressure
+    data_type: boolean
+    description: A boolean indicating whether or not the QB was pressured on a play
+  - name: route
+    data_type: text
+    description: 'A string indicating the route the primary receiver on a play took. Has the following
+      possible values: "CORNER", "DEEP OUT", "GO", "HITCH/CURL", "IN/DIG", "POST", "QUICK OUT", "SCREEN",
+      "SHALLOW CROSS/DRAG", "SLANT", "SWING", "TEXAS/ANGLE", "WHEEL".'
+  - name: defense_man_zone_type
+    data_type: text
+    description: A string indicating whether the defense was in man or zone coverage on a play
+  - name: defense_coverage_type
+    data_type: text
+    description: 'A string indicating what type of cover the defense was in on a play. Has one of the
+      following values: "COVER_0", "COVER_1", "COVER_2", "2_MAN", "COVER_3", "COVER_4", "COVER_6", "COVER_9",
+      "COMBO", "BLOWN".'
+  - name: offense_names
+    data_type: text
+    description: A string listing all of the names of offensive players in the order of their gsis_ids
+      in offense_players.
+  - name: defense_names
+    data_type: text
+    description: A string listing all of the names of defensive players in the order of their gsis_ids
+      in defense_players.
+  - name: offense_positions
+    data_type: text
+    description: A string listing all of the positions of offensive players in the order of their gsis_ids
+      in offense_players.
+  - name: defense_positions
+    data_type: text
+    description: A string listing all of the positions of defensive players in the order of their gsis_ids
+      in defense_players.
+  - name: offense_numbers
+    data_type: text
+    description: A string listing all of the numbers of offensive players in the order of their gsis_ids
+      in offense_players.
+  - name: defense_numbers
+    data_type: text
+    description: A string listing all of the numbers of defensive players in the order of their gsis_ids
+      in defense_players.
+  - name: _loaded_at
+    data_type: timestamp with time zone
+    description: When this row was loaded into staging. Drives incremental upserts into clean.
+  - name: season
+    data_type: smallint
+    description: NFL season the play belongs to. Not present in the nflverse file; stamped by the loader
+      from the requested season.
