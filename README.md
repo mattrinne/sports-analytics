@@ -115,6 +115,24 @@ How it is maintained (`dbt/`):
 - `nfl.*` views (`games`, `plays`, `coach_games`, `coach_stints`, `game_coordinators`,
   `player_game_stats`, `team_game_stats`) are dbt models in `dbt/models/marts/` and read only
   from `clean`.
+- `nfl.coaches` is the one persisted mart: a coach dimension with a stable numeric `coach_id`
+  for joins (`coach_name`, `created_at`, `updated_at`), one row per distinct coach in
+  `clean.coaching_staff` after spelling variants are resolved. Ids come from a sequence and are
+  never reused; the model opts out of `--full-refresh`. `nfl.coach_aliases` lists every known
+  spelling with its `coach_id`, and `nfl.game_coordinators` carries `*_id` columns resolved
+  through it, so nflverse's head-coach names and Wikipedia's coordinator names land on one key.
+- **Reference mappings.** Spelling variants (`Billy Davis` / `Bill Davis`, `Pete Carmichael` /
+  `Pete Carmichael Jr.`, nflverse's `Klint Kubliak`) are resolved through one curated
+  reference-data table, `nfl.reference_mappings`, seeded from `data/seeds/reference_mappings.csv`
+  (`domain`, `source_system`, `source_value`, `canonical_value`, optional season range, note).
+  Only exceptions are listed; anything without a row passes through unchanged. It is maintained
+  by hand: `uv run python scripts/coach_alias_candidates.py` prints look-alike pairs not yet
+  mapped, a person decides (coaching families such as the Harbaughs and Shanahans score high and
+  must stay separate), and the CSV is edited. Adding a mapping removes the alias row from
+  `nfl.coaches` on the next build and keeps its `coach_id` retired. Parser artifacts (footnote
+  daggers, `, Jr.` punctuation) are fixed in the Wikipedia parser instead of being mapped. Because
+  the dimension is upsert-only, a name that changes for any other reason (a parser fix, a
+  Wikipedia edit) leaves its old row behind until you add a mapping row for the old spelling.
 
 ```bash
 uv run nfl-pipeline transform            # = dbt build (incremental upsert), against NFL_DB_* (localhost)
@@ -213,9 +231,9 @@ The CLI reads `NFL_DATABASE_URL` (defaults to the Docker Postgres on localhost) 
 dags/                 nfl_backfill.py, nfl_weekly_refresh.py, nfl_metadata_refresh.py, nfl_staging_truncate.py, common.py
 src/nfl_pipeline/     config.py, datasets.py (registry), db.py (DDL/COPY), ingest.py, cli.py
 dbt/                  dbt project: models/clean (typed copies, contracts, primary keys), models/marts (nfl views)
-scripts/              gen_clean_models.py (typed SELECT per staging table), gen_dbt_columns.py (column yml)
+scripts/              gen_clean_models.py (typed SELECT per staging table), gen_dbt_columns.py (column yml), coach_alias_candidates.py
 sql/metadata/         metadata.column_labels view
-data/                 curated inputs: metadata/*.yaml (labels, rules, overrides, table docs), coaching_staff_overrides.csv
+data/                 curated inputs: metadata/*.yaml (labels, rules, overrides, table docs), coaching_staff_overrides.csv, seeds/reference_mappings.csv
 docker/postgres/init  creates the `airflow` and `nfl` databases and the staging/clean/nfl/metadata schemas on first boot
 docker-compose.yaml   Airflow 3.3.1 LocalExecutor stack; Dockerfile adds requirements.txt to the image
 ```

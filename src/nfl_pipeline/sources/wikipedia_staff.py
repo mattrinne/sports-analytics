@@ -194,6 +194,18 @@ def _clean(text: str) -> str:
     return text.strip()
 
 
+def normalize_name(name: str) -> str:
+    """Canonical spelling of a person's name as parsed from wikitext: drop footnote markers
+    (dagger/asterisk that Wikipedia uses for suspensions etc.), collapse whitespace, and write
+    generational suffixes one way ("Pete Carmichael, Jr." / "Ken Norton Jr" -> "... Jr.")."""
+    name = re.sub(r"[†‡*]+", "", name)
+    name = re.sub(r"\s+", " ", name).strip(" ,")
+    name = re.sub(
+        r",?\s+(jr|sr)\.?$", lambda m: f" {m.group(1).title()}.", name, flags=re.IGNORECASE
+    )
+    return name
+
+
 def _split_title_name(line: str) -> tuple[str, str] | None:
     # "*Head coach – [[Name]] ''note''"  separators: en dash, em dash, hyphen, colon
     body = line.lstrip("*").strip()
@@ -308,7 +320,7 @@ def parse_staff(
             if extra and extra not in (note_text or ""):
                 note_text = f"{note_text}; {extra}" if note_text else extra
         name_interim = bool(re.search(r"\((?:interim|acting)\)", name, re.IGNORECASE))
-        name = re.sub(r"\s*\(.*?\)\s*", " ", name).strip(" ,")
+        name = normalize_name(re.sub(r"\s*\(.*?\)\s*", " ", name))
         if not name or name.lower() in ("vacant", "none", "tbd"):
             continue
         for role, interim in _roles_for_title(title):

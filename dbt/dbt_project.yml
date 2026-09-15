@@ -9,6 +9,8 @@ profile: nfl
 model-paths: ["models"]
 macro-paths: ["macros"]
 test-paths: ["tests"]
+# Curated reference data lives with the other hand-maintained inputs under data/.
+seed-paths: ["../data/seeds"]
 
 clean-targets: ["target", "dbt_packages"]
 
@@ -31,3 +33,7 @@ models:
       +materialized: view
       +persist_docs:
         relation: true
+
+seeds:
+  nfl_warehouse:
+    +schema: nfl

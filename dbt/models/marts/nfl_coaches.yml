@@ -1,0 +1,35 @@
+version: 2
+models:
+  - name: nfl_coaches
+    description: >-
+      Persisted coach dimension (nfl.coaches): one row per distinct coach in clean.coaching_staff
+      after resolving spellings through nfl.reference_mappings (domain coach_name), with a stable
+      numeric surrogate key for joins (sequence nfl.coach_id_seq, ids never reused). Incremental:
+      new names get the next id; existing rows keep coach_id and created_at and only updated_at
+      moves when a coaching_staff partition mentioning them is reloaded. Every known spelling of a
+      coach is in nfl.coach_aliases. Opted out of --full-refresh; drop the table and sequence to
+      renumber deliberately.
+    constraints:
+      - type: primary_key
+        columns: [coach_id]
+      - type: unique
+        columns: [coach_name]
+    columns:
+      - name: coach_id
+        data_type: integer
+        description: Surrogate key from nfl.coach_id_seq, assigned in order of first appearance and never reused. Use this for joins from future tables.
+      - name: coach_name
+        data_type: text
+        description: Canonical coach name (natural key). Source spellings map to it via nfl.reference_mappings; see nfl.coach_aliases.
+        constraints:
+          - type: not_null
+      - name: created_at
+        data_type: timestamp with time zone
+        description: When the row was first inserted.
+        constraints:
+          - type: not_null
+      - name: updated_at
+        data_type: timestamp with time zone
+        description: Last time a build touched the row (a coaching_staff partition mentioning the coach was reloaded).
+        constraints:
+          - type: not_null

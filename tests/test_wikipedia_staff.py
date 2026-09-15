@@ -3,6 +3,7 @@ import datetime as dt
 from nfl_pipeline.sources.wikipedia_staff import (
     _roles_for_title,
     article_title,
+    normalize_name,
     parse_date,
     parse_staff,
     resolve_week_note,
@@ -151,3 +152,11 @@ def test_linked_titles_in_current_staff_template():
 """
     roles = {e.role: e.coach for e in parse_staff(wt, 2026, "WAS")}
     assert roles == {"head_coach": "Dan Quinn", "offensive_coordinator": "David Blough"}
+
+
+def test_normalize_name_strips_markers_and_suffix_punctuation():
+    assert normalize_name("Sean Payton†") == "Sean Payton"
+    assert normalize_name("Pete Carmichael, Jr.") == "Pete Carmichael Jr."
+    assert normalize_name("Ken Norton Jr") == "Ken Norton Jr."
+    assert normalize_name("Derius Swinton II") == "Derius Swinton II"
+    assert normalize_name("  Rich  Bisaccia ") == "Rich Bisaccia"
