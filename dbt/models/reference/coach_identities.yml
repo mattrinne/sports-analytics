@@ -1,0 +1,37 @@
+version: 2
+models:
+  - name: coach_identities
+    description: >-
+      Master data for coaches: every spelling seen in clean.coaching_staff or reference_mappings
+      (domain coach_name), resolved to a canonical name and a coach_id minted here (sequence
+      reference.coach_id_seq, never reused). nfl.coaches is derived from this table. Join any
+      coach name column through alias to get coach_id.
+    constraints:
+      - type: primary_key
+        columns: [alias]
+    columns:
+      - name: alias
+        data_type: text
+        description: A spelling as it appears in some source.
+      - name: coach_id
+        data_type: integer
+        description: Surrogate key, one per canonical name.
+        constraints: [{type: not_null}]
+      - name: coach_name
+        data_type: text
+        description: Canonical name the spelling resolves to.
+        constraints: [{type: not_null}]
+      - name: source
+        data_type: text
+        description: canonical (the spelling is the canonical name) or reference_mappings (mapped spelling).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [canonical, reference_mappings]
+      - name: created_at
+        data_type: timestamp with time zone
+        constraints: [{type: not_null}]
+      - name: updated_at
+        data_type: timestamp with time zone
+        description: Last time the row's id, canonical name or source changed.
+        constraints: [{type: not_null}]

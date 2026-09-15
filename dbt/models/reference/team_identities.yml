@@ -1,0 +1,36 @@
+version: 2
+models:
+  - name: team_identities
+    description: >-
+      Master data for teams: every team code used in the warehouse (41 today) resolved to its
+      franchise team_id (nflverse's numeric id) and canonical code. nfl.teams is derived from this
+      table. Join any team column through alias to get team_id.
+    constraints:
+      - type: primary_key
+        columns: [alias]
+    columns:
+      - name: alias
+        data_type: text
+        description: A team code as it appears in some table.
+      - name: team_id
+        data_type: integer
+        description: nflverse franchise id (clean.teams.team_id as an integer); stable across relocations.
+        constraints: [{type: not_null}]
+      - name: team_abbr
+        data_type: text
+        description: Canonical current code the alias resolves to (LAR for the Rams).
+        constraints: [{type: not_null}]
+      - name: source
+        data_type: text
+        description: canonical (the code is the canonical code) or reference_mappings (mapped code).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [canonical, reference_mappings]
+      - name: created_at
+        data_type: timestamp with time zone
+        constraints: [{type: not_null}]
+      - name: updated_at
+        data_type: timestamp with time zone
+        description: Last time the row's id, canonical code or source changed.
+        constraints: [{type: not_null}]

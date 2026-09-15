@@ -1,0 +1,45 @@
+version: 2
+models:
+  - name: nfl_teams
+    description: >-
+      Franchise dimension (nfl.teams): the 32 current teams, keyed by nflverse's numeric franchise
+      id, derived from reference.team_identities (which resolves every legacy/GSIS code to a
+      franchise) with attributes from clean.teams. Incremental: rows are inserted or updated only
+      when an attribute changes, so updated_at is meaningful.
+    constraints:
+      - type: primary_key
+        columns: [team_id]
+      - type: unique
+        columns: [team_abbr]
+    columns:
+      - name: team_id
+        data_type: integer
+        description: nflverse franchise id (clean.teams.team_id as an integer); stable across relocations.
+      - name: team_abbr
+        data_type: text
+        description: Canonical current code (LAR for the Rams, LV, LAC, ...).
+        constraints: [{type: not_null}]
+      - name: team_name
+        data_type: text
+        description: Full current name.
+      - name: team_nick
+        data_type: text
+        description: Nickname (Rams, Raiders, ...).
+      - name: team_conf
+        data_type: text
+        description: AFC or NFC.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [AFC, NFC]
+      - name: team_division
+        data_type: text
+        description: Division, e.g. NFC West.
+      - name: created_at
+        data_type: timestamp with time zone
+        description: When the row was first inserted.
+        constraints: [{type: not_null}]
+      - name: updated_at
+        data_type: timestamp with time zone
+        description: Last time an attribute changed.
+        constraints: [{type: not_null}]

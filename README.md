@@ -10,7 +10,8 @@ nflverse parquet (GitHub releases)
         ▼
  src/nfl_pipeline  ──COPY──▶  Postgres  staging.*  (landing zone: 1:1 mirror of the files, truncatable)
                                         clean.*    (dbt: same tables and columns, types fixed, upserted by key — the durable copy)
-                                        nfl.*      (dbt: persisted marts — coach dimension, reference mappings; no views)
+                                        reference.* (dbt: curated mappings + identity tables — every source spelling/code → key)
+                                        nfl.*      (dbt: persisted dimensions derived from reference — coaches, teams; no views)
         ▲
  Airflow 3 (LocalExecutor)  dags/nfl_backfill  (manual, season range)
                             dags/nfl_weekly_refresh  (Tue+Wed 08:00 America/Chicago, current season)
@@ -112,26 +113,33 @@ How it is maintained (`dbt/`):
   when triggering either DAG, or run `uv run nfl-pipeline transform --full-refresh`. A full refresh
   rebuilds from whatever is in staging, so run it while staging still holds the seasons you care
   about (a backfill first if you truncated).
-- `nfl.*` holds persisted marts only, no views: today the coach dimension, its aliases and the
-  reference mappings below. Analysis queries go straight against `clean.*`.
-- `nfl.coaches` is a coach dimension with a stable numeric `coach_id`
-  for joins (`coach_name`, `created_at`, `updated_at`), one row per distinct coach in
-  `clean.coaching_staff` after spelling variants are resolved. Ids come from a sequence and are
-  never reused; the model opts out of `--full-refresh`. `nfl.coach_aliases` lists every known
-  spelling with its `coach_id` (a small table rebuilt every run), so nflverse's head-coach names and
-  Wikipedia's coordinator names resolve to one key when you join through it.
-- **Reference mappings.** Spelling variants (`Billy Davis` / `Bill Davis`, `Pete Carmichael` /
-  `Pete Carmichael Jr.`, nflverse's `Klint Kubliak`) are resolved through one curated
-  reference-data table, `nfl.reference_mappings`, seeded from `data/seeds/reference_mappings.csv`
+- **`reference.*` owns identity.** `reference.reference_mappings` is the curated reference data
+  (RDM): spelling and code equivalences per domain, seeded from `data/seeds/reference_mappings.csv`
   (`domain`, `source_system`, `source_value`, `canonical_value`, optional season range, note).
-  Only exceptions are listed; anything without a row passes through unchanged. It is maintained
-  by hand: `uv run python scripts/coach_alias_candidates.py` prints look-alike pairs not yet
-  mapped, a person decides (coaching families such as the Harbaughs and Shanahans score high and
-  must stay separate), and the CSV is edited. Adding a mapping removes the alias row from
-  `nfl.coaches` on the next build and keeps its `coach_id` retired. Parser artifacts (footnote
-  daggers, `, Jr.` punctuation) are fixed in the Wikipedia parser instead of being mapped. Because
-  the dimension is upsert-only, a name that changes for any other reason (a parser fix, a
-  Wikipedia edit) leaves its old row behind until you add a mapping row for the old spelling.
+  Only exceptions are listed; anything without a row passes through unchanged. On top of it sit
+  the master-data tables, one per entity: `reference.coach_identities` and
+  `reference.team_identities`, one row per spelling or code seen anywhere (`alias`), resolved to
+  the canonical value and the key (`coach_id`, `team_id`), with `source` = canonical or
+  reference_mappings and `created_at`/`updated_at`. Ids are minted here: `coach_id` from a sequence
+  in order of first appearance and never reused; `team_id` is nflverse's numeric franchise id, which
+  a franchise keeps through relocations (OAK and LV are one team). To key any table on a coach or
+  team, join its name/code column to `alias`.
+- **`nfl.*` holds persisted dimensions derived from `reference`, no views.** `nfl.coaches` (409
+  rows: `coach_id`, canonical `coach_name`, timestamps) and `nfl.teams` (exactly the 32 current
+  franchises: `team_id`, canonical code with `LAR` for the Rams, name, nickname, conference,
+  division, timestamps that move only when an attribute changes). "Current" is data-driven: the
+  home teams of the latest season in `clean.schedules`. Analysis queries go straight against
+  `clean.*` and join through `reference` to these keys.
+- **Maintaining the mappings.** Spelling variants (`Billy Davis` / `Bill Davis`, nflverse's
+  `Klint Kubliak`) and code variants (the warehouse uses 41 codes for 32 teams: era codes
+  `STL`/`SD`/`OAK`, nflverse's `LA`, GSIS club codes `ARZ`/`BLT`/`CLV`/`HST`/`SL` in 2010–2015
+  rosters) are fixed by adding a CSV row, never automatically: `uv run python
+  scripts/coach_alias_candidates.py` prints look-alike coach pairs not yet mapped and a person
+  decides (coaching families such as the Harbaughs and Shanahans score high and must stay
+  separate). On the next build the alias row takes the canonical's id and the retired id
+  disappears from `nfl.coaches`. A dbt test fails the build if any table uses a team code that
+  `team_identities` cannot resolve. Parser artifacts (footnote daggers, `, Jr.` punctuation) are
+  fixed in the Wikipedia parser instead of being mapped.
 
 Typical queries go straight at `clean.*` (typed, all history):
 
@@ -141,9 +149,15 @@ select posteam, avg(epa) from clean.pbp where season = 2024 and pass group by 1 
 select pa.defense_coverage_type, count(*), avg(p.epa)
 from clean.pbp p join clean.participation pa on pa.nflverse_game_id = p.game_id and pa.play_id = p.play_id
 where p.season = 2024 and p.pass_attempt group by 1;
--- coordinators per team-season, keyed by coach_id
-select s.season, s.team, s.role, a.coach_id, a.coach_name
-from clean.coaching_staff s join nfl.coach_aliases a on a.alias = s.coach;
+-- coordinators per team-season, keyed by coach_id and franchise team_id
+select s.season, ti.team_id, ti.team_abbr, s.role, ci.coach_id, ci.coach_name
+from clean.coaching_staff s
+join reference.coach_identities ci on ci.alias = s.coach
+join reference.team_identities  ti on ti.alias = s.team;
+-- franchise record 2010+, Raiders in Oakland and Las Vegas as one team
+select ti.team_abbr, sum(case when g.home_score > g.away_score then 1 else 0 end) as home_wins
+from clean.schedules g join reference.team_identities ti on ti.alias = g.home_team
+where g.season >= 2010 group by 1 order by 2 desc;
 ```
 
 ```bash
@@ -242,11 +256,11 @@ The CLI reads `NFL_DATABASE_URL` (defaults to the Docker Postgres on localhost) 
 ```
 dags/                 nfl_backfill.py, nfl_weekly_refresh.py, nfl_metadata_refresh.py, nfl_staging_truncate.py, common.py
 src/nfl_pipeline/     config.py, datasets.py (registry), db.py (DDL/COPY), ingest.py, cli.py
-dbt/                  dbt project: models/clean (typed copies, contracts, primary keys), models/marts (persisted nfl.* marts)
+dbt/                  dbt project: models/clean (typed copies), models/reference (mappings + identities), models/marts (nfl.* dimensions)
 scripts/              gen_clean_models.py (typed SELECT per staging table), gen_dbt_columns.py (column yml), coach_alias_candidates.py
 sql/metadata/         metadata.column_labels view
 data/                 curated inputs: metadata/*.yaml (labels, rules, overrides, table docs), coaching_staff_overrides.csv, seeds/reference_mappings.csv
-docker/postgres/init  creates the `airflow` and `nfl` databases and the staging/clean/nfl/metadata schemas on first boot
+docker/postgres/init  creates the `airflow` and `nfl` databases and the staging/clean/reference/nfl/metadata schemas on first boot
 docker-compose.yaml   Airflow 3.3.1 LocalExecutor stack; Dockerfile adds requirements.txt to the image
 ```
 

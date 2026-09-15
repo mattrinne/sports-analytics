@@ -9,3 +9,12 @@ coach_name,wikipedia,Richard Bisaccia,Rich Bisaccia,,,same person
 coach_name,nflverse,Klint Kubliak,Klint Kubiak,,,nflverse schedules typo
 coach_name,nflverse,Jay Rosburg,Jerry Rosburg,,,nflverse schedules spelling of the 2022 DEN interim HC
 coach_name,wikipedia,Bubba Ventrone,Raymond Ventrone,,,nickname of Raymond Ventrone
+team_abbr,,LA,LAR,,,Rams: nflverse uses LA in pbp/stats and schedules 2016+; LAR is the canonical code
+team_abbr,,STL,LAR,,,Rams in St. Louis (schedules/coaching_staff through 2015)
+team_abbr,,SL,LAR,,,Rams GSIS club code (rosters 2010-2015)
+team_abbr,,OAK,LV,,,Raiders in Oakland (through 2019)
+team_abbr,,SD,LAC,,,Chargers in San Diego (through 2016)
+team_abbr,,ARZ,ARI,,,Cardinals GSIS club code (rosters 2010-2015)
+team_abbr,,BLT,BAL,,,Ravens GSIS club code (rosters 2010-2015)
+team_abbr,,CLV,CLE,,,Browns GSIS club code (rosters 2010-2015)
+team_abbr,,HST,HOU,,,Texans GSIS club code (rosters 2010-2015)

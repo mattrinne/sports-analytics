@@ -14,7 +14,8 @@ SQL
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname nfl <<-SQL
     CREATE SCHEMA IF NOT EXISTS staging AUTHORIZATION nfl;
     CREATE SCHEMA IF NOT EXISTS clean AUTHORIZATION nfl;
+    CREATE SCHEMA IF NOT EXISTS reference AUTHORIZATION nfl;
     CREATE SCHEMA IF NOT EXISTS nfl AUTHORIZATION nfl;
     CREATE SCHEMA IF NOT EXISTS metadata AUTHORIZATION nfl;
-    ALTER DATABASE nfl SET search_path TO nfl, clean, staging, metadata, public;
+    ALTER DATABASE nfl SET search_path TO nfl, reference, clean, staging, metadata, public;
 SQL

@@ -34,7 +34,7 @@ def main() -> None:
         mapped = {
             r[0]
             for r in conn.execute(
-                "select source_value from nfl.reference_mappings where domain = 'coach_name'"
+                "select source_value from reference.reference_mappings where domain = 'coach_name'"
             )
         }
     rows = []

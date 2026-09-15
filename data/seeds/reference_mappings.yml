@@ -7,7 +7,7 @@ seeds:
       row to one source (wikipedia, nflverse); empty = any source. Maintained by hand from the
       candidate report (scripts/coach_alias_candidates.py); never populated automatically.
     config:
-      schema: nfl
+      schema: reference
       column_types:
         domain: text
         source_system: text
