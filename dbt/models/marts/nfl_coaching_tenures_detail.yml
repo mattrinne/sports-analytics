@@ -1,0 +1,43 @@
+version: 2
+models:
+  - name: nfl_coaching_tenures_detail
+    description: >-
+      Presentation view (nfl.coaching_tenures_detail) over nfl.coaching_tenures with the coach name,
+      team abbreviation/name and role abbreviation joined in. Same grain as the persisted table
+      without its source and audit columns; use it for reading, join to nfl.coaching_tenures by key
+      for anything else.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: coach_id
+        data_type: integer
+        description: nfl.coaches key.
+      - name: coach_name
+        data_type: text
+        description: Canonical coach name from nfl.coaches.
+      - name: team_id
+        data_type: integer
+        description: nfl.teams franchise key.
+      - name: team_abbr
+        data_type: text
+        description: Current team code (LAR, LV, LAC, ...).
+      - name: team_name
+        data_type: text
+        description: Full current team name.
+      - name: role_id
+        data_type: smallint
+        description: reference.coach_roles key.
+      - name: role_abbr
+        data_type: text
+        description: HC, OC or DC.
+      - name: is_interim
+        data_type: boolean
+      - name: first_season
+        data_type: smallint
+      - name: last_season
+        data_type: smallint
+      - name: start_date
+        data_type: date
+      - name: end_date
+        data_type: date

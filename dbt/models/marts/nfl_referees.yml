@@ -1,0 +1,31 @@
+version: 2
+models:
+  - name: nfl_referees
+    description: >-
+      Referee dimension (nfl.referees), one row per referee_id with the canonical name, derived from
+      reference.referee_identities where ids are minted and spellings resolved. Covers every referee
+      (crew chief) named in the nflverse game log (1999+) and the officials crew data (2015+),
+      including the 2001 and 2012 replacement officials. Use referee_id for joins; resolve
+      clean.schedules.referee or clean.officials.official_name through
+      reference.referee_identities.alias.
+    constraints:
+      - type: primary_key
+        columns: [referee_id]
+      - type: unique
+        columns: [referee_name]
+    columns:
+      - name: referee_id
+        data_type: integer
+        description: Surrogate key (reference.referee_id_seq), one per canonical name, never reused.
+      - name: referee_name
+        data_type: text
+        description: Canonical referee name (the most frequent spelling in the sources).
+        constraints: [{type: not_null}]
+      - name: created_at
+        data_type: timestamp with time zone
+        description: First time any spelling of this referee was seen.
+        constraints: [{type: not_null}]
+      - name: updated_at
+        data_type: timestamp with time zone
+        description: Last time any of the referee's identity rows changed.
+        constraints: [{type: not_null}]

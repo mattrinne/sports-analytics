@@ -1,7 +1,7 @@
 # dbt project for the clean and analysis layers. staging.* is loaded by nfl_pipeline (Python);
 # clean.* is a typed, upserted copy of it (so staging can be truncated) reference.* holds the curated
 # mappings and the identity (master data) tables, and nfl.* the persisted marts derived from
-# them (no views). Run `dbt build --full-refresh` after a contract (type) change or to drop rows
+# them (plus presentation views that only join those marts to their dimensions). Run `dbt build --full-refresh` after a contract (type) change or to drop rows
 # nflverse deleted from a re-published season; it needs the affected seasons present in staging.
 name: nfl_warehouse
 version: "1.0.0"
@@ -35,7 +35,7 @@ models:
       +schema: reference
     marts:
       +schema: nfl
-      +materialized: table  # persisted marts only; incremental models override per model
+      +materialized: table  # persisted marts; incremental/view models override per model
       +persist_docs:
         relation: true
 

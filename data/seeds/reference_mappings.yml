@@ -5,7 +5,7 @@ seeds:
       Curated reference-data mappings (source spelling -> canonical value) per domain. Only
       exceptions are listed; values with no row pass through unchanged. source_system narrows a
       row to one source (wikipedia, nflverse); empty = any source. Maintained by hand from the
-      candidate report (scripts/coach_alias_candidates.py); never populated automatically.
+      candidate report (scripts/alias_candidates.py); never populated automatically.
     config:
       schema: reference
       column_types:
@@ -22,7 +22,7 @@ seeds:
         data_tests:
           - accepted_values:
               arguments:
-                values: [coach_name, team_abbr, stadium, official_name]
+                values: [coach_name, team_abbr, coach_role, referee_name, stadium]
       - name: source_system
         description: Source the spelling comes from (wikipedia, nflverse) or empty for any.
       - name: source_value
@@ -34,6 +34,6 @@ seeds:
         data_tests:
           - not_null
       - name: valid_from
-        description: First season the mapping applies (empty = always).
+        description: First season the mapping applies (empty = always). Honoured by nfl.stadiums; identity tables apply mappings to every season.
       - name: valid_to
-        description: Last season the mapping applies (empty = always).
+        description: Last season the mapping applies (empty = always). Honoured by nfl.stadiums; identity tables apply mappings to every season.

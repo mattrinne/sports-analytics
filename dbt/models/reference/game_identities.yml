@@ -1,0 +1,39 @@
+version: 2
+models:
+  - name: game_identities
+    description: >-
+      Master data for games: every id a source uses for a game, resolved to the nflverse game_id
+      string (game_key) and to an integer game_id minted here (sequence reference.game_id_seq,
+      never reused). Aliases are the nflverse game_id (clean.pbp.game_id,
+      clean.participation.nflverse_game_id, stats tables) and the GSIS old_game_id
+      (clean.officials.game_id) when it names exactly one game. nfl.schedules is keyed by game_id;
+      join any game id column through alias to get it.
+    constraints:
+      - type: primary_key
+        columns: [alias]
+    columns:
+      - name: alias
+        data_type: text
+        description: A game id as it appears in some source.
+      - name: game_id
+        data_type: integer
+        description: Surrogate key, one per nflverse game.
+        constraints: [{type: not_null}]
+      - name: game_key
+        data_type: text
+        description: The nflverse game_id string (clean.schedules.game_id) the alias resolves to.
+        constraints: [{type: not_null}]
+      - name: source
+        data_type: text
+        description: canonical (the alias is the nflverse game_id) or old_game_id (GSIS id).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [canonical, old_game_id]
+      - name: created_at
+        data_type: timestamp with time zone
+        constraints: [{type: not_null}]
+      - name: updated_at
+        data_type: timestamp with time zone
+        description: Last time the row's id, key or source changed.
+        constraints: [{type: not_null}]

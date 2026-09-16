@@ -3,7 +3,8 @@ models:
   - name: nfl_coaches
     description: >-
       Coach dimension (nfl.coaches), one row per coach_id with the canonical name, derived from
-      reference.coach_identities where ids are minted and spellings resolved. Use coach_id for
+      reference.coach_identities where ids are minted and spellings resolved. Covers every coach in
+      the Wikipedia staff data (2010+) and every head coach in the nflverse game log (1999+). Use coach_id for
       joins; resolve source names through reference.coach_identities.alias.
     constraints:
       - type: primary_key

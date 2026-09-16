@@ -1,0 +1,197 @@
+version: 2
+models:
+  - name: nfl_schedules
+    description: >-
+      Game table (nfl.schedules): one row per game in clean.schedules, 1999+, played and scheduled,
+      keyed by the integer game_id minted in reference.game_identities, with teams, head coaches,
+      referee and venue resolved to warehouse keys and the external ids (GSIS, PFR, PFF, ESPN, FTN)
+      kept for joins to other sources. Incremental: a row is rewritten only when an attribute changes.
+    constraints:
+      - type: primary_key
+        columns: [game_id]
+    columns:
+      - name: game_id
+        data_type: integer
+        description: Surrogate key from reference.game_identities (resolve clean.*.game_id / old_game_id through alias).
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('game_identities')
+                field: game_id
+      - name: season
+        data_type: smallint
+        description: Season.
+        constraints: [{type: not_null}]
+      - name: game_type
+        data_type: text
+        description: REG, WC, DIV, CON, SB.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [REG, WC, DIV, CON, SB]
+      - name: week
+        data_type: smallint
+        description: Week number (playoff weeks continue the count).
+        constraints: [{type: not_null}]
+      - name: gameday
+        data_type: date
+        description: Game date.
+        constraints: [{type: not_null}]
+      - name: weekday
+        data_type: text
+        description: Day of week as given by nflverse.
+      - name: gametime
+        data_type: time
+        description: Scheduled kickoff, US Eastern, as given by nflverse. NULL until the league sets it.
+      - name: time_of_day
+        data_type: text
+        description: "Kickoff bucket in US Central time: morning (<12:00), noon (12:00-13:59), afternoon (14:00-16:59), night (>=17:00)."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [morning, noon, afternoon, night]
+      - name: away_team_id
+        data_type: integer
+        description: nfl.teams key of the away team.
+        constraints: [{type: not_null}]
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('nfl_teams')
+                field: team_id
+      - name: home_team_id
+        data_type: integer
+        description: nfl.teams key of the home team.
+        constraints: [{type: not_null}]
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('nfl_teams')
+                field: team_id
+      - name: away_score
+        data_type: smallint
+        description: NULL until played.
+      - name: home_score
+        data_type: smallint
+        description: NULL until played.
+      - name: result
+        data_type: smallint
+        description: home_score - away_score.
+      - name: total
+        data_type: smallint
+        description: home_score + away_score.
+      - name: winning_team_id
+        data_type: integer
+        description: nfl.teams key of the winner; NULL for ties and unplayed games.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('nfl_teams')
+                field: team_id
+      - name: winning_team_location
+        data_type: text
+        description: home or away; NULL for ties and unplayed games.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [home, away]
+      - name: losing_team_id
+        data_type: integer
+        description: nfl.teams key of the loser; NULL for ties and unplayed games.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('nfl_teams')
+                field: team_id
+      - name: losing_team_location
+        data_type: text
+        description: home or away; NULL for ties and unplayed games.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [home, away]
+      - name: overtime
+        data_type: boolean
+        description: Game went to overtime.
+      - name: gsis_id
+        data_type: integer
+        description: NFL GSIS game id (clean.schedules.gsis).
+      - name: nfl_detail_id
+        data_type: text
+        description: NFL detail page id (sparse).
+      - name: pfr_id
+        data_type: text
+        description: Pro Football Reference game id (clean.schedules.pfr).
+      - name: pff_id
+        data_type: integer
+        description: PFF game id (clean.schedules.pff).
+      - name: espn_id
+        data_type: integer
+        description: ESPN game id (clean.schedules.espn, always numeric).
+      - name: ftn_id
+        data_type: integer
+        description: FTN game id (clean.schedules.ftn).
+      - name: away_rest
+        data_type: smallint
+        description: Days since the away team's previous game.
+      - name: home_rest
+        data_type: smallint
+        description: Days since the home team's previous game.
+      - name: away_moneyline
+        data_type: smallint
+        description: Closing moneyline, away.
+      - name: home_moneyline
+        data_type: smallint
+        description: Closing moneyline, home.
+      - name: spread_line
+        data_type: double precision
+        description: Closing spread (positive = home favoured, nflverse convention).
+      - name: total_line
+        data_type: double precision
+        description: Closing over/under.
+      - name: temp
+        data_type: smallint
+        description: Kickoff temperature (F), outdoor games.
+      - name: wind
+        data_type: smallint
+        description: Wind (mph), outdoor games.
+      - name: away_coach_id
+        data_type: integer
+        description: nfl.coaches key of the away head coach.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('nfl_coaches')
+                field: coach_id
+      - name: home_coach_id
+        data_type: integer
+        description: nfl.coaches key of the home head coach.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('nfl_coaches')
+                field: coach_id
+      - name: referee_id
+        data_type: integer
+        description: nfl.referees key of the referee named in the game log (schedules.referee); NULL until assigned.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('nfl_referees')
+                field: referee_id
+      - name: stadium_id
+        data_type: integer
+        description: nfl.stadiums key (integer; the nflverse venue code is nfl.stadiums.stadium_code).
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('nfl_stadiums')
+                field: stadium_id
+      - name: created_at
+        data_type: timestamp with time zone
+        description: First time the game appeared.
+        constraints: [{type: not_null}]
+      - name: updated_at
+        data_type: timestamp with time zone
+        description: Last time any attribute changed.
+        constraints: [{type: not_null}]

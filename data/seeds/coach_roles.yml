@@ -1,0 +1,21 @@
+version: 2
+seeds:
+  - name: coach_roles
+    description: >-
+      Reference list of the coaching roles tracked in nfl.coaching_tenures. Source role codes in
+      clean.coaching_staff (head_coach, offensive_coordinator, defensive_coordinator) map to these
+      names through reference_mappings (domain coach_role); special teams coordinators are not
+      tracked.
+    config:
+      schema: reference
+      column_types: {role_id: smallint, role: text, role_abbr: text}
+    columns:
+      - name: role_id
+        description: Surrogate key used by nfl.coaching_tenures.
+        data_tests: [unique, not_null]
+      - name: role
+        description: Role name.
+        data_tests: [unique, not_null]
+      - name: role_abbr
+        description: HC, OC, DC.
+        data_tests: [unique, not_null]

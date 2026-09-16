@@ -11,8 +11,9 @@
         pre_hook="create sequence if not exists {{ this.schema }}.coach_id_seq",
     )
 }}
--- Master data for coaches: one row per spelling seen anywhere (clean.coaching_staff plus every
--- reference_mappings row for domain coach_name), resolved to a canonical name and a coach_id.
+-- Master data for coaches: one row per spelling seen anywhere (clean.coaching_staff, the head
+-- coaches named per game in clean.schedules, and every reference_mappings row for domain
+-- coach_name), resolved to a canonical name and a coach_id.
 -- Ids are minted here from a sequence, one per canonical name, and never reused. Incremental:
 -- only new spellings, or spellings whose canonical/id changed because a mapping was added, are
 -- written, so updated_at is meaningful. When a mapping merges two names that both had ids, the
@@ -26,6 +27,10 @@ with mappings as (
 ),
 spellings as (
     select distinct coach as alias from {{ ref('coaching_staff') }} where coach is not null
+    union
+    select home_coach from {{ ref('schedules') }} where home_coach is not null
+    union
+    select away_coach from {{ ref('schedules') }} where away_coach is not null
     union
     select source_value from mappings
 ),

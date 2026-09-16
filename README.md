@@ -117,26 +117,65 @@ How it is maintained (`dbt/`):
   (RDM): spelling and code equivalences per domain, seeded from `data/seeds/reference_mappings.csv`
   (`domain`, `source_system`, `source_value`, `canonical_value`, optional season range, note).
   Only exceptions are listed; anything without a row passes through unchanged. On top of it sit
-  the master-data tables, one per entity: `reference.coach_identities` and
-  `reference.team_identities`, one row per spelling or code seen anywhere (`alias`), resolved to
-  the canonical value and the key (`coach_id`, `team_id`), with `source` = canonical or
-  reference_mappings and `created_at`/`updated_at`. Ids are minted here: `coach_id` from a sequence
-  in order of first appearance and never reused; `team_id` is nflverse's numeric franchise id, which
-  a franchise keeps through relocations (OAK and LV are one team). To key any table on a coach or
-  team, join its name/code column to `alias`.
-- **`nfl.*` holds persisted dimensions derived from `reference`, no views.** `nfl.coaches` (409
-  rows: `coach_id`, canonical `coach_name`, timestamps) and `nfl.teams` (exactly the 32 current
+  the master-data tables, one per entity: `reference.coach_identities`,
+  `reference.referee_identities`, `reference.team_identities`, `reference.stadium_identities` and
+  `reference.game_identities`, one row per spelling or code seen anywhere (`alias`: Wikipedia
+  staff names, nflverse per-game head-coach and referee names, officials crew names, team codes,
+  nflverse venue codes, nflverse and GSIS game ids), resolved to the canonical value and the key
+  (`coach_id`, `referee_id`, `team_id`, `stadium_id`, `game_id`), with `source` = canonical or reference_mappings and
+  `created_at`/`updated_at`. Ids are minted here: `coach_id` and `referee_id` from a sequence in
+  order of first appearance and never reused (nflverse's `official_id` cannot serve: it was
+  renumbered in 2023 and does not exist before 2015); the integer `game_id` likewise, with both
+  the nflverse string (`2024_06_JAX_CHI`, used by pbp and the stats tables) and the GSIS
+  `old_game_id` (`2024101300`, used by officials) as aliases; and `stadium_id` from the nflverse
+  venue code (`JAX00`); `team_id` is nflverse's numeric franchise
+  id, which a franchise keeps through relocations (OAK and LV are one team). To key any table on a
+  coach, referee or team, join its name/code column to `alias`.
+- **`nfl.*` holds persisted dimensions derived from `reference`.** `nfl.coaches`
+  (`coach_id`, canonical `coach_name`, timestamps: every coach in the Wikipedia staff data and every
+  head coach in the nflverse game log) and `nfl.teams` (exactly the 32 current
   franchises: `team_id`, canonical code with `LAR` for the Rams, name, nickname, conference,
   division, timestamps that move only when an attribute changes). "Current" is data-driven: the
-  home teams of the latest season in `clean.schedules`. Analysis queries go straight against
-  `clean.*` and join through `reference` to these keys.
+  home teams of the latest season in `clean.schedules`. `nfl.referees` (`referee_id`, canonical
+  `referee_name`, timestamps) covers every crew chief in the game log 1999+, replacement officials
+  included. `nfl.stadiums` (integer `stadium_id`, nflverse venue code `stadium_code` such as
+  `JAX00`, stable through naming-rights changes and present on every game and play, latest
+  `stadium_name`, `roof` (dome / outdoors / retractable), latest `surface`, `first_season`,
+  `last_season`); season-bounded `stadium` mapping rows correct names (the 2026 schedule still
+  says Reliant Stadium). Analysis queries go straight against `clean.*` and join through `reference` to these
+  keys.
+- **`nfl.schedules`**: one row per game 1999+, played and scheduled, keyed by the integer
+  `game_id`, with teams, head coaches, referee and venue as warehouse keys, scores and result,
+  winner/loser id and side, the external ids (GSIS, PFR, PFF, ESPN, FTN), rest days, closing
+  lines, weather, and `time_of_day` (kickoff in US Central: morning before 12:00, noon to 13:59,
+  afternoon to 16:59, night from 17:00; `gametime` itself stays US Eastern as nflverse gives it).
+  Incremental, so `updated_at` moves when a score lands, a kickoff is flexed or a line changes.
+- **`nfl.coaching_tenures`**: one row per continuous stint of a coach in a role with a franchise
+  (`coach_id`, `team_id`, `role_id`, `is_interim`, `first_season`, `last_season`, `start_date`,
+  `end_date`, `start_source`, `end_source`, timestamps). Roles come from `reference.coach_roles`
+  (1 HC, 2 OC, 3 DC; special teams is not tracked) via `reference_mappings` domain `coach_role`.
+  Head coaches are built from the nflverse game log in `clean.schedules`, which names the head
+  coach of every played game (1999+) and so catches coaches Wikipedia's end-of-season staff block
+  omits (e.g. Nathaniel Hackett, fired in week 16 of 2022); Wikipedia adds the interim flag and
+  any recorded change dates. Coordinators come from `clean.coaching_staff` (2010+). The source
+  columns name the table each date came from: `coaching_staff` (a recorded date, exact) or
+  `schedules` (the game log: first/last game coached around a mid-season head-coach change, or the
+  season calendar as a proxy for an undated season-long stint: the day after the franchise's
+  previous season ended, or its last game). A NULL date with a NULL source is unknown (an undated
+  interim change and the coach it replaced); `end_source` = `ongoing` marks a current tenure.
+  Incremental: only tenures whose dates,
+  sources or last season changed are rewritten. `nfl.coaching_tenures_detail` is a view over it
+  with `coach_name`, `team_abbr`/`team_name` and `role_abbr` joined in and the source/audit columns
+  left out, for reading; the only views
+  in `nfl` are presentation views like this one over persisted marts.
 - **Maintaining the mappings.** Spelling variants (`Billy Davis` / `Bill Davis`, nflverse's
-  `Klint Kubliak`) and code variants (the warehouse uses 41 codes for 32 teams: era codes
+  `Klint Kubliak`; referee typos such as `Bill Carolo`, `Adrian Hall`, `John Perry`, verified
+  against the officials crew data) and code variants (the warehouse uses 41 codes for 32 teams: era codes
   `STL`/`SD`/`OAK`, nflverse's `LA`, GSIS club codes `ARZ`/`BLT`/`CLV`/`HST`/`SL` in 2010–2015
   rosters) are fixed by adding a CSV row, never automatically: `uv run python
-  scripts/coach_alias_candidates.py` prints look-alike coach pairs not yet mapped and a person
-  decides (coaching families such as the Harbaughs and Shanahans score high and must stay
-  separate). On the next build the alias row takes the canonical's id and the retired id
+  scripts/alias_candidates.py coach|referee` prints look-alike pairs not yet mapped and a person
+  decides (relatives such as the Harbaughs, Shanahans, Hochulis and Careys score high and must
+  stay separate). On the next build the alias row takes the canonical's id and the retired id
   disappears from `nfl.coaches`. A dbt test fails the build if any table uses a team code that
   `team_identities` cannot resolve. Parser artifacts (footnote daggers, `, Jr.` punctuation) are
   fixed in the Wikipedia parser instead of being mapped.
@@ -149,15 +188,20 @@ select posteam, avg(epa) from clean.pbp where season = 2024 and pass group by 1 
 select pa.defense_coverage_type, count(*), avg(p.epa)
 from clean.pbp p join clean.participation pa on pa.nflverse_game_id = p.game_id and pa.play_id = p.play_id
 where p.season = 2024 and p.pass_attempt group by 1;
--- coordinators per team-season, keyed by coach_id and franchise team_id
-select s.season, ti.team_id, ti.team_abbr, s.role, ci.coach_id, ci.coach_name
-from clean.coaching_staff s
-join reference.coach_identities ci on ci.alias = s.coach
-join reference.team_identities  ti on ti.alias = s.team;
--- franchise record 2010+, Raiders in Oakland and Las Vegas as one team
-select ti.team_abbr, sum(case when g.home_score > g.away_score then 1 else 0 end) as home_wins
-from clean.schedules g join reference.team_identities ti on ti.alias = g.home_team
+-- head-coach tenures, longest first
+select coach_name, team_abbr, start_date, end_date, first_season, last_season
+from nfl.coaching_tenures_detail
+where role_abbr = 'HC' and not is_interim
+order by last_season - first_season desc;
+-- franchise wins 2010+, Raiders in Oakland and Las Vegas as one team
+select t.team_abbr, count(*) as wins
+from nfl.schedules g join nfl.teams t on t.team_id = g.winning_team_id
 where g.season >= 2010 group by 1 order by 2 desc;
+-- EPA per play keyed to the integer game id
+select g.game_id, g.time_of_day, avg(p.epa)
+from clean.pbp p join reference.game_identities gi on gi.alias = p.game_id
+join nfl.schedules g on g.game_id = gi.game_id
+where g.season = 2024 group by 1, 2;
 ```
 
 ```bash
@@ -256,8 +300,8 @@ The CLI reads `NFL_DATABASE_URL` (defaults to the Docker Postgres on localhost) 
 ```
 dags/                 nfl_backfill.py, nfl_weekly_refresh.py, nfl_metadata_refresh.py, nfl_staging_truncate.py, common.py
 src/nfl_pipeline/     config.py, datasets.py (registry), db.py (DDL/COPY), ingest.py, cli.py
-dbt/                  dbt project: models/clean (typed copies), models/reference (mappings + identities), models/marts (nfl.* dimensions)
-scripts/              gen_clean_models.py (typed SELECT per staging table), gen_dbt_columns.py (column yml), coach_alias_candidates.py
+dbt/                  dbt project: models/clean (typed copies), models/reference (mappings + identities), models/marts (nfl.* dimensions, tenures)
+scripts/              gen_clean_models.py (typed SELECT per staging table), gen_dbt_columns.py (column yml), alias_candidates.py
 sql/metadata/         metadata.column_labels view
 data/                 curated inputs: metadata/*.yaml (labels, rules, overrides, table docs), coaching_staff_overrides.csv, seeds/reference_mappings.csv
 docker/postgres/init  creates the `airflow` and `nfl` databases and the staging/clean/reference/nfl/metadata schemas on first boot

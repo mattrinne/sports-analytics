@@ -18,3 +18,22 @@ team_abbr,,ARZ,ARI,,,Cardinals GSIS club code (rosters 2010-2015)
 team_abbr,,BLT,BAL,,,Ravens GSIS club code (rosters 2010-2015)
 team_abbr,,CLV,CLE,,,Browns GSIS club code (rosters 2010-2015)
 team_abbr,,HST,HOU,,,Texans GSIS club code (rosters 2010-2015)
+coach_role,,head_coach,Head Coach,,,clean.coaching_staff.role -> reference.coach_roles.role
+coach_role,,offensive_coordinator,Offensive Coordinator,,,clean.coaching_staff.role -> reference.coach_roles.role
+coach_role,,defensive_coordinator,Defensive Coordinator,,,clean.coaching_staff.role -> reference.coach_roles.role
+referee_name,nflverse,Bill Carolo,Bill Carollo,,,schedules typo (1999)
+referee_name,nflverse,Dick Hantag,Dick Hantak,,,schedules typo (1999)
+referee_name,nflverse,Billy Leavy,Bill Leavy,,,schedules variant (2004 playoffs)
+referee_name,nflverse,Bill Vinocich,Bill Vinovich,,,schedules typo (2012)
+referee_name,nflverse,Al Riveron,Alberto Riveron,,,short form (2012)
+referee_name,nflverse,Michael Carey,Mike Carey,,,long form (2012 wild card)
+referee_name,nflverse,Gene Stetatore,Gene Steratore,,,schedules typo (2014)
+referee_name,nflverse,Tony Steratore,Gene Steratore,,,2017_06_TB_ARI: officials crew data names Gene Steratore; Tony (his brother) was never a referee
+referee_name,nflverse,John Perry,John Parry,,,schedules typo; officials crew data names John Parry (#132) for both games
+referee_name,nflverse,Adrian Hall,Adrian Hill,,,schedules typo; officials crew data names Adrian Hill (#29) for the game
+referee_name,nflverse,Tom Corrente,Tony Corrente,,,schedules variant (2 games)
+referee_name,nflverse,Gerald Austin,Gerry Austin,,,Gerry is the usual spelling (129 games vs 16)
+referee_name,nflverse,Ron Torbert,Ronald Torbert,,,both spellings in schedules; Ronald is more frequent (231 vs 152) and is the officials crew spelling
+referee_name,nflverse,Bradley Rogers,Brad Rogers,,,officials crew spelling 2017-2019; Brad thereafter (190 vs 30)
+stadium,nflverse,Tottenham Stadium,Tottenham Hotspur Stadium,,,short form used 2019-2024
+stadium,nflverse,Reliant Stadium,NRG Stadium,2014,,renamed NRG Stadium in 2014; the 2026 schedule still carries the old name

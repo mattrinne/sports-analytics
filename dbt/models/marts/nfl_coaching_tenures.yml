@@ -1,0 +1,96 @@
+version: 2
+models:
+- name: nfl_coaching_tenures
+  description: One row per continuous stint of a coach in a role (HC/OC/DC) with a franchise. Head coaches
+    come from the nflverse game log in clean.schedules (complete even when Wikipedia omits a coach fired
+    mid-season), with Wikipedia (clean.coaching_staff) supplying interim flags and recorded dates; coordinators
+    come from clean.coaching_staff. Keys resolve through reference.coach_identities, reference.team_identities
+    and reference.coach_roles. start_source/end_source name the table each date came from (coaching_staff
+    or schedules); NULL date with NULL source means unknown; end_source 'ongoing' marks a current tenure.
+  constraints:
+  - type: primary_key
+    columns:
+    - coach_id
+    - team_id
+    - role_id
+    - first_season
+    - is_interim
+  columns:
+  - name: coach_id
+    data_type: integer
+    description: nfl.coaches / reference.coach_identities key.
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('nfl_coaches')
+          field: coach_id
+  - name: team_id
+    data_type: integer
+    description: nfl.teams franchise key.
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('nfl_teams')
+          field: team_id
+  - name: role_id
+    data_type: smallint
+    description: reference.coach_roles key (1 HC, 2 OC, 3 DC). Checked by a relationships test (a seed
+      cannot carry a foreign key; it is truncated on every load).
+    data_tests:
+    - relationships:
+        arguments:
+          to: ref('coach_roles')
+          field: role_id
+  - name: is_interim
+    data_type: boolean
+    description: Interim/acting stint (from Wikipedia; false when Wikipedia has no row for the coach).
+    constraints:
+    - type: not_null
+  - name: first_season
+    data_type: smallint
+    description: First season of the tenure.
+    constraints:
+    - type: not_null
+  - name: last_season
+    data_type: smallint
+    description: Last season of the tenure (the latest loaded season while ongoing).
+    constraints:
+    - type: not_null
+  - name: start_date
+    data_type: date
+    description: When the tenure began; NULL when unknown (start_source is NULL too).
+  - name: end_date
+    data_type: date
+    description: When the tenure ended; NULL when ongoing or unknown (see end_source).
+  - name: start_source
+    data_type: text
+    description: 'Table the start date came from: coaching_staff (a recorded Wikipedia date) or schedules
+      (first game coached after a mid-season change, or the season-calendar proxy: day after the franchise''s
+      previous season ended). NULL when the start is unknown.'
+    data_tests:
+    - accepted_values:
+        arguments:
+          values:
+          - coaching_staff
+          - schedules
+  - name: end_source
+    data_type: text
+    description: 'Table the end date came from: coaching_staff (recorded) or schedules (last game coached
+      before a mid-season change, or the last game of the season). NULL when unknown; ''ongoing'' while
+      the tenure runs into the latest season.'
+    data_tests:
+    - accepted_values:
+        arguments:
+          values:
+          - coaching_staff
+          - schedules
+          - ongoing
+  - name: created_at
+    data_type: timestamp with time zone
+    constraints:
+    - type: not_null
+  - name: updated_at
+    data_type: timestamp with time zone
+    description: Last time the tenure's dates, sources or last season changed.
+    constraints:
+    - type: not_null

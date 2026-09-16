@@ -1,0 +1,52 @@
+version: 2
+models:
+  - name: nfl_stadiums
+    description: >-
+      Venue dimension (nfl.stadiums): one row per venue, keyed by the integer stadium_id minted in
+      reference.stadium_identities from nflverse's venue code (stadium_code: JAX00, LON02, ...,
+      carried by every game in clean.schedules and clean.pbp). A venue keeps its code through
+      naming-rights changes, so the name history stays in clean.schedules.stadium and this table
+      shows the latest name (after season-bounded corrections in reference_mappings, domain
+      stadium). Incremental: rows are inserted or updated only when an attribute changes.
+    constraints:
+      - type: primary_key
+        columns: [stadium_id]
+      - type: unique
+        columns: [stadium_code]
+    columns:
+      - name: stadium_id
+        data_type: integer
+        description: Surrogate key (reference.stadium_id_seq), one per venue code, never reused.
+      - name: stadium_code
+        data_type: text
+        description: nflverse venue code (clean.schedules.stadium_id); resolve it through reference.stadium_identities.alias.
+        constraints: [{type: not_null}]
+      - name: stadium_name
+        data_type: text
+        description: Name used in the venue's latest season (most frequent when a season carries two).
+        constraints: [{type: not_null}]
+      - name: roof
+        data_type: text
+        description: dome, outdoors, or retractable (nflverse recorded both open and closed games). NULL when unknown.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [dome, outdoors, retractable]
+      - name: surface
+        data_type: text
+        description: Playing surface in the latest season (grass, fieldturf, ...). NULL when unknown.
+      - name: first_season
+        data_type: smallint
+        description: First season with a game at the venue (schedules cover 1999+).
+        constraints: [{type: not_null}]
+      - name: last_season
+        data_type: smallint
+        description: Latest season with a game (played or scheduled) at the venue.
+        constraints: [{type: not_null}]
+      - name: created_at
+        data_type: timestamp with time zone
+        constraints: [{type: not_null}]
+      - name: updated_at
+        data_type: timestamp with time zone
+        description: Last time an attribute changed.
+        constraints: [{type: not_null}]

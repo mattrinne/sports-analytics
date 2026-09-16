@@ -1,0 +1,37 @@
+version: 2
+models:
+  - name: stadium_identities
+    description: >-
+      Master data for venues: every nflverse venue code in clean.schedules.stadium_id (JAX00, LON02,
+      ...) resolved to an integer stadium_id minted here (sequence reference.stadium_id_seq, never
+      reused). nfl.stadiums and nfl.schedules are keyed by stadium_id; join
+      clean.schedules.stadium_id or clean.pbp.stadium_id through alias to get it.
+    constraints:
+      - type: primary_key
+        columns: [alias]
+    columns:
+      - name: alias
+        data_type: text
+        description: nflverse venue code as it appears in the source.
+      - name: stadium_id
+        data_type: integer
+        description: Surrogate key, one per venue code.
+        constraints: [{type: not_null}]
+      - name: stadium_code
+        data_type: text
+        description: Canonical venue code (equal to alias; codes need no mapping).
+        constraints: [{type: not_null}]
+      - name: source
+        data_type: text
+        description: canonical.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [canonical]
+      - name: created_at
+        data_type: timestamp with time zone
+        constraints: [{type: not_null}]
+      - name: updated_at
+        data_type: timestamp with time zone
+        description: Last time the row's id or code changed.
+        constraints: [{type: not_null}]
