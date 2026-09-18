@@ -1,5 +1,6 @@
-# Connection for dbt. Same nfl/nfl role the Python loader uses; dbt-postgres wants the parts,
-# not a URL, so these come from NFL_DB_* (docker compose sets NFL_DB_HOST=postgres).
+# Connection for dbt. Same role the Python loader uses; dbt-postgres wants the parts, not a URL.
+# `nfl-pipeline transform`/`refresh` derive NFL_DB_* from NFL_DATABASE_URL when they are unset,
+# so normally only the URL needs configuring (sslmode=require for Azure).
 nfl:
   target: dev
   outputs:
@@ -10,6 +11,7 @@ nfl:
       user: "{{ env_var('NFL_DB_USER', 'nfl') }}"
       password: "{{ env_var('NFL_DB_PASSWORD', 'nfl') }}"
       dbname: "{{ env_var('NFL_DB_NAME', 'nfl') }}"
+      sslmode: "{{ env_var('NFL_DB_SSLMODE', 'prefer') }}"
       schema: clean
       # 1 thread: models that reference the same parents (players, teams, games) take
       # ShareRowExclusive locks on them while creating foreign keys and deadlock when run in

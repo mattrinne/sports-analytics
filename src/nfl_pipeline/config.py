@@ -11,7 +11,6 @@ from pathlib import Path
 class Settings:
     database_url: str
     start_season: int
-    sql_dir: Path
     data_dir: Path  # curated inputs: data/metadata/*.yaml, data/coaching_staff_overrides.csv
     dbt_dir: Path  # dbt project: clean + nfl layers
     staging_schema: str = "staging"  # landing zone, truncatable; clean is the durable copy
@@ -29,7 +28,6 @@ def settings() -> Settings:
     return Settings(
         database_url=os.environ.get("NFL_DATABASE_URL", "postgresql://nfl:nfl@localhost:5432/nfl"),
         start_season=int(os.environ.get("NFL_START_SEASON", "2010")),
-        sql_dir=Path(os.environ.get("NFL_SQL_DIR", root / "sql")),
         data_dir=Path(os.environ.get("NFL_DATA_DIR", root / "data")),
         dbt_dir=Path(os.environ.get("NFL_DBT_DIR", root / "dbt")),
     )

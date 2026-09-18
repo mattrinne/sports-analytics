@@ -5,7 +5,6 @@ from __future__ import annotations
 import io
 import logging
 from collections.abc import Iterable, Sequence
-from pathlib import Path
 
 import polars as pl
 import psycopg
@@ -178,16 +177,6 @@ def ensure_indexes(
                 sql.SQL(", ").join(sql.Identifier(c) for c in unique),
             )
         )
-
-
-def apply_sql_dir(conn: psycopg.Connection, directory: Path) -> list[str]:
-    """Execute every *.sql file in the directory in name order. Files must be idempotent."""
-    applied = []
-    for path in sorted(directory.glob("*.sql")):
-        conn.execute(path.read_text())
-        applied.append(path.name)
-        log.info("applied %s", path)
-    return applied
 
 
 def truncate_tables(

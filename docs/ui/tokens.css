@@ -1,0 +1,52 @@
+/* The Hook — design tokens
+   Theme: "Gold on graphite" terminal (decided 2026-09-18). Single dark theme; there is no light mode.
+   Source of truth for colour, type and density. Any UI stack consumes these; nothing else defines a colour. */
+
+:root {
+  /* ground and surfaces (neutral, no warm cast) */
+  --bg:            #121316;   /* page */
+  --bar:           #17181c;   /* top bar, table headers, ticker */
+  --surface:       #1a1b20;   /* cards, tiles, table bodies */
+  --rule:          #26282e;   /* borders, grid lines, dividers */
+  --frame:         #31343b;   /* outer frame / stronger divider */
+
+  /* text */
+  --fg:            #e8e8e6;
+  --muted:         #85868c;
+
+  /* accent — identity colour. Also the push colour. Never used for data series. */
+  --accent:        #ffd24a;
+  --accent-soft:   color-mix(in srgb, var(--accent) 10%, transparent);
+
+  /* semantic — betting outcomes only, nothing else may use these */
+  --cover:         #5fd88c;   /* covered / over hit / win */
+  --loss:          #f26a60;   /* did not cover / under / loss */
+  --push:          var(--accent);
+  --chip-mix:      14%;       /* chip background = semantic colour mixed at this strength */
+
+  /* type — all monospace; one family carries labels, figures and body */
+  --font-mono:     "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font:          var(--font-mono);
+  --font-num:      var(--font-mono);
+  --size:          12px;      /* base */
+  --size-label:    10.5px;    /* uppercase labels, letter-spacing .08em */
+  --size-cell:     12px;      /* table cells */
+  --size-tile:     20px;      /* record tile figure */
+
+  /* density and shape */
+  --radius:        0;         /* square corners everywhere */
+  --row-h:         26px;      /* table row */
+  --bar-h:         40px;
+  --ticker-h:      26px;
+  --pad:           12px;      /* panel padding and gap between panels */
+  --gap:           6px;       /* gap between cards / tiles */
+
+  /* chrome conventions */
+  --nav-case:      uppercase;
+  --nav-ls:        .08em;
+  --section-mark:  "▸";       /* prefix on section headings, in --accent */
+
+  color-scheme: dark;
+}
+
+/* Team colours are data, shown only as 9px swatches next to abbreviations. Never as a chart palette. */

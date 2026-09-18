@@ -1,15 +1,16 @@
 [project]
 name = "nfl-pipeline"
 version = "0.1.0"
-description = "Load nflverse NFL data into a local Postgres warehouse, orchestrated by Airflow."
+description = "Load nflverse NFL data into a Postgres warehouse and transform it with dbt."
 requires-python = ">=3.12"
 dependencies = [
     "nflreadpy>=0.1.5",
     "polars>=1.0",
-    "pyarrow>=15",
     "psycopg[binary]>=3.1",
     "typer>=0.12",
     "pyyaml>=6",
+    "dbt-core~=1.12",
+    "dbt-postgres~=1.11",
 ]
 
 [project.scripts]
@@ -19,9 +20,6 @@ nfl-pipeline = "nfl_pipeline.cli:app"
 dev = [
     "pytest>=8",
     "ruff>=0.5",
-    "apache-airflow==3.3.1",
-    "dbt-core~=1.12",
-    "dbt-postgres~=1.11",
 ]
 
 [build-system]

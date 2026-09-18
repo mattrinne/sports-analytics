@@ -1,46 +1,93 @@
 # sports-analytics — working notes for Claude
 
-Local NFL warehouse: nflverse data (via `nflreadpy`) + Wikipedia coaching staffs → Postgres in
-Docker, orchestrated by Airflow 3 (LocalExecutor), transformed by dbt. One user, one laptop.
-Data is pulled once and analyzed forever; there is no live data. `README.md` is the user-facing
-doc; this file is the contributor's mental model and the rules that are easy to break.
+NFL warehouse: nflverse data (via `nflreadpy`) + Wikipedia coaching staffs → Postgres, loaded by
+the `nfl-pipeline` CLI running as a scheduled container, transformed by dbt. One user. Dev
+environment is docker compose on a laptop; the deployed shape is Azure (Postgres Flexible Server,
+the pipeline as a Container Apps Job, later the UI as a Container App), kept as cheap as possible
+because the user pays for it. Data is pulled once and analyzed forever; there is no live data.
+`README.md` is the user-facing doc; this file is the contributor's mental model and the rules
+that are easy to break.
+
+## Purpose and direction
+
+The warehouse is the foundation, not the product. The end goal is a **web UI for analyzing and
+visualizing NFL data for sports betting**: curated datasets (team/coach/referee/situational
+splits against the closing line), and eventually predictive models (spread, total, win
+probability) trained on the history held here. Everything is historical — there is no live odds
+feed — so the value is in backtesting, trend discovery and model training, not in-game pricing.
+
+What this means for work in this repo:
+
+- **Betting-relevant columns are first-class.** `schedules` carries nflverse closing lines
+  (`spread_line` positive = home favoured, `total_line`, moneylines, spread/over/under odds).
+  Treat them, `result` and `total` as the labels every analysis and model will key on; never
+  drop or "clean away" odds columns. Line-movement / opening lines are not in nflverse and are a
+  known gap (deferred; would need a separate source and its own identity work).
+- **Datasets for the UI and models are persisted marts in `nfl`**, built the same way as the
+  dimensions (contract, integer PK, `created_at`/`updated_at`, incremental merge). A feature
+  table for a model is a mart, not a notebook artifact. Views only re-present marts.
+- **Grain and keys must be UI-friendly**: integer keys, one row per (game, team) or (game,
+  team, player) etc., stable across seasons, joinable to `nfl.teams`/`coaches`/`referees`/
+  `stadiums` without going back through `reference.*_identities`. The UI should read `nfl.*`
+  only.
+- **Models are a separate layer** (Python, not dbt). Training reads `nfl.*`; predictions,
+  backtest results and model metadata land in their own schema (name TBD, e.g. `models`) with
+  the same contract/PK discipline, so the UI can show a model's history alongside the data.
+- **Web UI ("The Hook") is not yet started.** Theme is decided: "gold on graphite" terminal, tokens and
+  rules in `docs/ui/` (all monospace, square, dark; green/red/gold = cover/loss/push and nothing
+  else; team colours only as swatches). Stack and content priorities are still open, see
+  `docs/ui-brainstorm.md`. It runs as a scale-to-zero Container App next to the pipeline job,
+  reads `nfl.*` (and `ops.*` for data health) directly or through a thin read-only API, and must
+  also run locally against compose.
 
 ## Layers (schemas) and what may live in each
 
 | schema | built by | contents | rules |
 |---|---|---|---|
-| `staging` | Python loader (`src/nfl_pipeline`) | 1:1 mirror of each nflverse file, schema-on-write, one partition per season, `_loaded_at` stamp | **Disposable.** Truncated periodically (`nfl_staging_truncate` DAG / `nfl-pipeline staging truncate`). Never build anything that needs staging to be complete. |
+| `staging` | Python loader (`src/nfl_pipeline`) | 1:1 mirror of each nflverse file, schema-on-write, one partition per season, `_loaded_at` stamp | **Disposable and normally empty.** Every `refresh`/`backfill` truncates the tables it loaded after a green dbt build (`--keep-staging` opts out; `nfl-pipeline staging truncate` by hand). Never build anything that needs staging to be complete. |
 | `clean` | dbt `models/clean/` | **Column-for-column copy of staging with types fixed.** Same 12 tables, same names. Incremental `merge` by primary key, filtered on `_loaded_at`. | No derived tables, no dropped columns, no renames, no FKs. PK only (natural key or `_row_id` md5). Generated code — do not hand-edit (see below). |
 | `reference` | dbt `models/reference/` + seeds | RDM: `reference_mappings` seed (source spelling/code → canonical, per `domain`). MDM: `*_identities` tables for coaches, referees, teams, stadiums, games (one row per spelling/code = `alias` → key). Small lookups (`coach_roles`). | Identity flows **mappings → identities → dimensions**. Ids are minted in identities, never in a dimension. |
 | `nfl` | dbt `models/marts/` | Persisted dimensions/facts derived from `reference` + `clean`: `coaches`, `referees`, `teams`, `stadiums`, `schedules`, `coaching_tenures`. Presentation views over them (`coaching_tenures_detail`) join names/abbreviations onto keys. | Anything holding data is a table (`table` or `incremental`) with a contract and a PK, `created_at`/`updated_at`. A view may only re-present persisted marts (joins to dimensions), never derive new facts. |
-| `metadata` | Python (`nfl_pipeline.metadata`) | Data dictionary + label axes for `clean.*` (same column names as staging). Manual DAG `nfl_metadata_refresh`. | Curated inputs in `data/metadata/*.yaml`. `metadata lint` must be 0 errors. |
+| `metadata` | Python (`nfl_pipeline.metadata`) | Data dictionary + label axes for `clean.*` (same column names as staging). Manual `nfl-pipeline metadata build`. | Curated inputs in `data/metadata/*.yaml`. `metadata lint` must be 0 errors. |
+| `ops` | Python (`nfl_pipeline.runs`) | Run history: `runs` (one per `refresh`/`backfill`) and `run_steps` (one per dataset step, `dbt_build`, `truncate_staging`). Created with `IF NOT EXISTS` on first use. | Never a dbt model (dbt runs after it and may fail). Best-effort: a failure to record never fails a load. The only non-`nfl` schema the UI may read (data-health page). |
 
 Analysis queries go against `clean.*`, joined to `nfl.*` keys through `reference.*_identities.alias`.
 
 ## Ingestion path
 
 1. `nfl_pipeline.datasets.REGISTRY` lists datasets (nflreadpy loader or dotted path, min season,
-   partitioned or full-replace). Adding a dataset = one `Dataset(...)` entry; both load DAGs grow a
-   TaskGroup automatically.
+   partitioned or full-replace). Adding a dataset = one `Dataset(...)` entry; `refresh`, `backfill`
+   and `list` pick it up automatically. Keep the registry source-agnostic: other sports/sources
+   will be added the same way.
 2. `ingest.load_dataset(name, season)`: fetch → Polars → lowercase columns + `_loaded_at` →
    `ensure_table` (CREATE / ADD COLUMN / widen type) → `DELETE season` + `COPY` in one transaction,
-   under a per-table `pg_advisory_xact_lock` (concurrent seasons deadlocked without it).
-3. DAGs: `nfl_backfill` (manual, season range, `datasets`, `full_refresh` params) and
-   `nfl_weekly_refresh` (Tue/Wed 08:00 America/Chicago, current season). Both end in one
-   `dbt_build` BashOperator: `dbt build` on the whole project. Side jobs are their own manual DAG
-   (`nfl_metadata_refresh`, `nfl_staging_truncate`) — never add cross-cutting tasks to the load DAGs.
+   under a per-table `pg_advisory_xact_lock` (concurrent loads of one table deadlocked without it).
+3. `refresh` (current season) and `backfill` (season range) build a plan of `Step(dataset, season)`
+   (`runner.refresh_plan/backfill_plan`) and run it through `pipeline.run_pipeline`:
+   `runner.run_plan` (one worker per dataset, seasons serial inside it, `--workers 4`, retries on
+   `OSError`/`OperationalError` with 30 s → 60 s backoff, `SeasonUnavailable` → `skipped`) →
+   `dbt build` only if no step failed (skips are fine) → truncate the loaded staging tables, only
+   after a green dbt (default; `--keep-staging` opts out) → `ops.runs` row finished → webhook
+   (`NFL_ALERT_WEBHOOK_URL`) on failure. Exit 0/1/2.
+   Deployed, an Azure Container Apps Job runs `refresh` on `0 14 * * 2,3` UTC
+   (`deploy/azure/`). Side jobs are their own CLI command (`metadata build`, `staging truncate`) —
+   never add cross-cutting steps to `refresh`.
 4. `coaching_staff` is not nflverse: Wikipedia season articles, batched MediaWiki API, 1 req/s,
    in memory only, corrections via `data/coaching_staff_overrides.csv`. Parser lives in
    `src/nfl_pipeline/sources/wikipedia_staff.py`; `normalize_name()` strips footnote daggers and
    unifies `Jr.` punctuation — fix parser artifacts there, never with a mapping row.
 
 **Hard rule from the user:** nothing downloaded at runtime is written to disk (no vendored
-dictionaries, no wikitext cache, dbt writes `target/`/logs to `/tmp` in containers). Curated,
-human-owned inputs live under `data/` (`metadata/*.yaml`, `seeds/*.csv`, `coaching_staff_overrides.csv`).
+dictionaries, no wikitext cache, dbt writes `target/`/logs to `/tmp` in containers, nflreadpy's
+cache is off in the image and on a named volume locally). Curated, human-owned inputs live under
+`data/` (`metadata/*.yaml`, `seeds/*.csv`, `coaching_staff_overrides.csv`) and are copied into the
+image, as is `dbt/`: rebuild the image after changing either.
 
 ## dbt conventions
 
-- Project in `dbt/`, profile `nfl` reads `NFL_DB_*` env vars (compose sets `NFL_DB_HOST=postgres`).
+- Project in `dbt/`, profile `nfl` reads `NFL_DB_*` env vars; `transform.dbt_env` derives them
+  (incl. `NFL_DB_SSLMODE` from `?sslmode=`) from `NFL_DATABASE_URL` when unset, so one URL serves
+  Python and dbt. dbt is a runtime dependency of the package (it ships in the image).
   `threads: 1` (parallel FK/constraint DDL deadlocked). Custom `generate_schema_name` uses the
   configured schema verbatim.
 - **Contracts enforced everywhere** (`clean`, `reference`, marts): every column declared with
@@ -61,8 +108,9 @@ human-owned inputs live under `data/` (`metadata/*.yaml`, `seeds/*.csv`, `coachi
   columns + `updated_at`. That is what makes `updated_at` meaningful. Clean models instead filter
   on `_loaded_at > max(_loaded_at)` via the `only_new()` macro.
 - Upserts never delete. A source row that disappears or changes key lingers until
-  `--full-refresh` (DAG param `full_refresh`, or `nfl-pipeline transform --full-refresh`). A full
-  refresh rebuilds from staging, so run it while staging holds the seasons you care about.
+  `--full-refresh`. A full refresh rebuilds from staging, which is normally empty: use
+  `backfill --full-refresh [-d t]` (load → rebuild → truncate), never a bare `transform --full-refresh`
+  unless a `backfill --keep-staging` just ran.
 - `on_schema_change: fail` on incremental models: a column/type/order change must be a deliberate
   full refresh of that model.
 - Deleting a model does **not** drop its table/view — drop it in Postgres too.
@@ -115,25 +163,29 @@ human-owned inputs live under `data/` (`metadata/*.yaml`, `seeds/*.csv`, `coachi
   hashes all columns for those. `depth_charts` changed format in 2025 (weekly rows → `dt`
   snapshots with no week).
 - `participation` (NGS charting) lags a season; the current season is skipped
-  (`SeasonUnavailable` → Airflow skip). Coverage type exists on ~half of charted plays.
-- Postgres auth is plain user/password (`nfl`/`nfl`) from env; Airflow's own DB is `airflow`.
+  (`SeasonUnavailable` → step `skipped`, dbt still runs). Coverage type exists on ~half of charted plays.
+- Early-September runs before nflverse publishes week 1 fail on pbp after retries and send one
+  alert; expected until the files appear.
+- Postgres auth is plain user/password (`nfl`/`nfl`) locally; Azure uses the Flexible Server admin
+  URL with `?sslmode=require` as the single `NFL_DATABASE_URL` secret.
 
 ## Commands
 
 ```bash
-uv sync && uv run pytest && uv run ruff check src dags tests scripts
-uv run nfl-pipeline list | load pbp --season 2024 | backfill --start 2010 | transform [--full-refresh] [--select x]
-uv run nfl-pipeline staging truncate -d pbp        # after transform has run
+uv sync && uv run pytest && uv run ruff check src tests scripts
+uv run nfl-pipeline list | load pbp --season 2024 | refresh [-d x] [--keep-staging] | backfill --start 2010 [--full-refresh] | transform [--select x]
+uv run nfl-pipeline staging truncate -d pbp        # by hand; refresh/backfill already do it
 uv run nfl-pipeline metadata build && uv run nfl-pipeline metadata lint
 cd dbt && uv run dbt build --profiles-dir .        # same as transform
-docker compose build && docker compose up -d       # rebuild image only when requirements.txt changes
-docker compose exec -T postgres psql -U nfl -d nfl
-PYTHONPATH=dags:src uv run python -c "import nfl_backfill, nfl_weekly_refresh, nfl_metadata_refresh, nfl_staging_truncate"
+docker compose up -d                               # postgres only
+docker compose build pipeline && docker compose run --rm pipeline refresh -d teams   # image = what Azure runs
+docker compose exec -T postgres psql -U nfl -d nfl -c "select * from ops.runs order by run_id desc limit 5"
 ```
 
 Verify a change end to end: `dbt build` green twice in a row (second run should `MERGE 0` on
-untouched models), `pytest`, `ruff`, DAG import check, and a look at the affected table in psql.
-Nothing has been committed yet; commit only when asked.
+untouched models), `pytest`, `ruff`, a `docker compose run --rm pipeline refresh -d <small dataset>`
+that exits 0 with a `success` row in `ops.runs`, and a look at the affected table in psql.
+Commit only when asked.
 
 ## How the user likes to work
 

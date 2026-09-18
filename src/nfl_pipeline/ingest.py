@@ -30,7 +30,7 @@ def fetch(dataset: Dataset, season: int | None = None) -> pl.DataFrame:
         mod_name, fn_name = dataset.loader.rsplit(".", 1)
         fn = getattr(importlib.import_module(mod_name), fn_name)
     else:
-        import nflreadpy  # heavy import kept out of DAG parse path
+        import nflreadpy  # heavy import kept out of CLI start-up
 
         fn = getattr(nflreadpy, dataset.loader)
     kwargs = dict(dataset.loader_kwargs)
@@ -59,7 +59,7 @@ def normalize(df: pl.DataFrame) -> pl.DataFrame:
 def load_dataset(name: str, season: int | None = None) -> dict:
     """Fetch from nflverse and replace the matching rows in staging.<table>. Idempotent.
 
-    Returns a small summary dict (safe to push as an Airflow XCom).
+    Returns a small summary dict (recorded in ops.run_steps by the runner).
     """
     dataset = REGISTRY[name]
     cfg = settings()
@@ -74,7 +74,7 @@ def load_dataset(name: str, season: int | None = None) -> dict:
         df = df.filter(pl.col("season") == season)
 
     with db.connect() as conn:
-        # Serialize loads of the same table (concurrent seasons in Airflow) so DDL, index creation
+        # Serialize loads of the same table (concurrent loads in the runner) so DDL, index creation
         # and the delete+COPY never deadlock. Different tables still load in parallel.
         db.lock_table(conn, cfg.staging_schema, dataset.table)
         db.ensure_schema(conn, cfg.staging_schema)

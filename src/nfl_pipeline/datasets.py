@@ -1,8 +1,8 @@
-"""Registry of nflverse datasets to mirror. Adding a dataset is one entry here; both DAGs and the
-CLI pick it up automatically.
+"""Registry of nflverse datasets to mirror. Adding a dataset is one entry here; `refresh`,
+`backfill` and `list` pick it up automatically.
 
-Loaders are named by string so importing this module (which Airflow does at DAG-parse time) does
-not import nflreadpy/polars.
+Loaders are named by string so importing this module does not import nflreadpy/polars, which keeps
+CLI start-up fast.
 """
 
 from __future__ import annotations

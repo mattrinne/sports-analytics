@@ -375,6 +375,20 @@ _DDL = {
 }
 
 
+# Unpivoted (table, column, axis, label) view over metadata.columns, one row per label and tag.
+_COLUMN_LABELS_VIEW = """
+    CREATE VIEW {schema}.column_labels AS
+    SELECT table_schema, table_name, column_name, axis, label
+    FROM {schema}.columns c
+    CROSS JOIN LATERAL (
+        VALUES ('role', c.role), ('side', c.side), ('entity', c.entity), ('category', c.category)
+    ) AS a(axis, label)
+    WHERE label IS NOT NULL
+    UNION ALL
+    SELECT table_schema, table_name, column_name, 'tag', unnest(tags)
+    FROM {schema}.columns"""
+
+
 def _pg_array(items: list[str]) -> str:
     return "{" + ",".join('"' + i.replace('"', '\\"') + '"' for i in items) + "}"
 
@@ -468,7 +482,7 @@ def build_metadata() -> dict:
         db.copy_df(conn, cfg.metadata_schema, "labels", labels_df)
         db.copy_df(conn, cfg.metadata_schema, "tables", tables_df)
         db.copy_df(conn, cfg.metadata_schema, "columns", columns_df)
-        db.apply_sql_dir(conn, cfg.sql_dir / "metadata")
+        conn.execute(_COLUMN_LABELS_VIEW.format(schema=cfg.metadata_schema))
         conn.commit()
 
     summary = coverage(cols)

@@ -7,10 +7,10 @@ import logging
 import typer
 
 from .config import settings
-from .datasets import REGISTRY, seasons_for
+from .datasets import REGISTRY
 
 app = typer.Typer(
-    no_args_is_help=True, help="Load nflverse data into the local Postgres warehouse."
+    no_args_is_help=True, help="Load nflverse data into the Postgres warehouse and transform it with dbt."
 )
 
 
@@ -46,51 +46,118 @@ def load(
     typer.echo(summary)
 
 
+def _check_datasets(datasets: list[str] | None) -> list[str] | None:
+    unknown = [d for d in datasets or [] if d not in REGISTRY]
+    if unknown:
+        raise typer.BadParameter(f"unknown dataset(s) {unknown}; see `nfl-pipeline list`")
+    return datasets or None
+
+
+def _run(command: str, plan, *, season: int | None, args: dict, datasets, **options) -> None:
+    from .pipeline import PipelineOptions, run_pipeline
+
+    opts = PipelineOptions(**options)
+    raise typer.Exit(run_pipeline(command, plan, season=season, args=args, opts=opts, datasets=datasets))
+
+
+_DATASETS = typer.Option(None, "--dataset", "-d", help="Subset of datasets (default: all).")
+_WORKERS = typer.Option(4, help="Datasets loaded concurrently (seasons of one dataset run serially).")
+_RETRIES = typer.Option(2, help="Retries per step on network / connection errors.")
+_RETRY_DELAY = typer.Option(30.0, help="Seconds before the first retry; doubles each retry.")
+_SKIP_TRANSFORM = typer.Option(False, help="Do not run dbt afterwards.")
+_FULL_REFRESH = typer.Option(False, help="dbt --full-refresh (drop + recreate incremental models).")
+_TRUNCATE = typer.Option(
+    True,
+    "--truncate-staging/--keep-staging",
+    help="TRUNCATE the loaded staging tables after a successful dbt build (default). "
+    "--keep-staging leaves them, e.g. before a standalone `transform --full-refresh`.",
+)
+_NOTIFY_SUCCESS = typer.Option(
+    False, help="Also send the webhook (NFL_ALERT_WEBHOOK_URL) on success, not only on failure."
+)
+
+
+@app.command()
+def refresh(
+    datasets: list[str] | None = _DATASETS,
+    workers: int = _WORKERS,
+    retries: int = _RETRIES,
+    retry_delay: float = _RETRY_DELAY,
+    skip_transform: bool = _SKIP_TRANSFORM,
+    full_refresh: bool = _FULL_REFRESH,
+    truncate_staging: bool = _TRUNCATE,
+    notify_success: bool = _NOTIFY_SUCCESS,
+):
+    """Load the current season of every dataset, dbt build, truncate staging. The scheduled job.
+
+    Exit 0 when every step loaded or was skipped (dataset not yet published) and dbt passed;
+    exit 1 otherwise. Every run is recorded in ops.runs / ops.run_steps.
+    """
+    import nflreadpy
+
+    from .runner import refresh_plan
+
+    datasets = _check_datasets(datasets)
+    season = int(nflreadpy.get_current_season())
+    _run(
+        "refresh",
+        refresh_plan(season, datasets),
+        season=season,
+        args={"datasets": datasets, "full_refresh": full_refresh, "truncate_staging": truncate_staging},
+        datasets=datasets,
+        workers=workers,
+        retries=retries,
+        retry_delay=retry_delay,
+        skip_transform=skip_transform,
+        full_refresh=full_refresh,
+        truncate_staging=truncate_staging,
+        notify_success=notify_success,
+    )
+
+
 @app.command()
 def backfill(
     start: int | None = typer.Option(None, help="First season; defaults to NFL_START_SEASON."),
     end: int | None = typer.Option(None, help="Last season; defaults to the current season."),
-    datasets: list[str] | None = typer.Option(None, "--dataset", "-d", help="Subset of datasets."),
-    skip_transform: bool = typer.Option(False, help="Do not run dbt afterwards."),
+    datasets: list[str] | None = _DATASETS,
+    workers: int = _WORKERS,
+    retries: int = _RETRIES,
+    retry_delay: float = _RETRY_DELAY,
+    skip_transform: bool = _SKIP_TRANSFORM,
+    full_refresh: bool = _FULL_REFRESH,
+    truncate_staging: bool = _TRUNCATE,
+    notify_success: bool = _NOTIFY_SUCCESS,
 ):
-    """Load every dataset for a range of seasons, then rebuild clean/nfl with dbt. Safe to re-run."""
+    """Load every dataset for a range of seasons, dbt build, truncate staging. Safe to re-run."""
     import nflreadpy
 
-    from .ingest import SeasonUnavailable, load_dataset
+    from .runner import backfill_plan
 
+    datasets = _check_datasets(datasets)
     start = start or settings().start_season
-    end = end or nflreadpy.get_current_season()
-    selected = [REGISTRY[n] for n in datasets] if datasets else list(REGISTRY.values())
-    for d in selected:
-        if d.partitioned:
-            for season in seasons_for(d, start, end):
-                try:
-                    typer.echo(load_dataset(d.name, season))
-                except SeasonUnavailable as exc:
-                    typer.echo(f"skipped: {exc}", err=True)
-        else:
-            typer.echo(load_dataset(d.name))
-    if not skip_transform:
-        transform([])
+    end = end or int(nflreadpy.get_current_season())
+    _run(
+        "backfill",
+        backfill_plan(start, end, datasets),
+        season=end,
+        args={"start": start, "end": end, "datasets": datasets, "full_refresh": full_refresh},
+        datasets=datasets,
+        workers=workers,
+        retries=retries,
+        retry_delay=retry_delay,
+        skip_transform=skip_transform,
+        full_refresh=full_refresh,
+        truncate_staging=truncate_staging,
+        notify_success=notify_success,
+    )
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def transform(dbt_args: list[str] = typer.Argument(None, help="Extra args passed to `dbt build`.")):
     """Rebuild the clean and nfl layers: `dbt build` on the whole project (see dbt/README)."""
-    import subprocess
+    from .transform import dbt_build
 
-    dbt_dir = settings().dbt_dir
-    cmd = [
-        "dbt",
-        "build",
-        "--project-dir",
-        str(dbt_dir),
-        "--profiles-dir",
-        str(dbt_dir),
-        *(dbt_args or []),
-    ]
-    typer.echo(" ".join(cmd), err=True)
-    raise typer.Exit(subprocess.run(cmd, check=False).returncode)
+    raise typer.Exit(dbt_build(extra=dbt_args or []))
 
 
 staging_app = typer.Typer(help="Landing-zone maintenance (staging schema).")
