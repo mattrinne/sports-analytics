@@ -25,7 +25,7 @@ export JOB_MEMORY="${JOB_MEMORY:-2Gi}"
 export REFRESH_CRON="${REFRESH_CRON:-0 14 * * 2,3}"
 
 # Image on GitHub Container Registry (public package). Built and pushed by hand for now:
-#   docker build --platform linux/amd64 -t ghcr.io/<owner>/nfl-pipeline:<tag> . && docker push ghcr.io/<owner>/nfl-pipeline:<tag>
+#   docker build --platform linux/amd64 -t ghcr.io/<owner>/nfl-pipeline:<tag> ./warehouse && docker push ghcr.io/<owner>/nfl-pipeline:<tag>
 export IMAGE="${IMAGE:-ghcr.io/CHANGE-ME/nfl-pipeline:latest}"
 
 # Optional webhook for failure alerts (Slack / Discord / ntfy). Blank disables it.

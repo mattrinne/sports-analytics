@@ -1,6 +1,8 @@
-# Local warehouse: Postgres plus the pipeline image. Postgres is the only long-running service.
+# Postgres plus the pipeline image (built from ./warehouse). Postgres is the only long-running
+# service; api/ and web/ will be added here as they arrive.
 #   cp .env.example .env
 #   docker compose up -d                                  # postgres
+#   docker compose build pipeline                         # the nfl-pipeline image, from ./warehouse
 #   docker compose run --rm pipeline backfill --start 2010  # first load (hours), then dbt build
 #   docker compose run --rm pipeline refresh              # current season + dbt build + truncate staging
 #   docker compose run --rm pipeline transform --full-refresh --select teams
@@ -32,7 +34,7 @@ services:
     restart: unless-stopped
 
   pipeline:
-    build: .
+    build: ./warehouse
     image: nfl-pipeline:local
     profiles: [tools]  # not started by `up`; `docker compose run --rm pipeline <command>`
     env_file:

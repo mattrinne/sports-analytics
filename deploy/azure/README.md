@@ -37,7 +37,7 @@ Requirements: `az` CLI logged in (`az login`), the `containerapp` extension
 
 ```bash
 echo $GITHUB_TOKEN | docker login ghcr.io -u <owner> --password-stdin   # token with write:packages
-docker build --platform linux/amd64 -t ghcr.io/<owner>/nfl-pipeline:$(git rev-parse --short HEAD) .
+docker build --platform linux/amd64 -t ghcr.io/<owner>/nfl-pipeline:$(git rev-parse --short HEAD) ./warehouse
 docker push ghcr.io/<owner>/nfl-pipeline:$(git rev-parse --short HEAD)
 ```
 
