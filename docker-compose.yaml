@@ -1,12 +1,15 @@
-# Postgres plus the pipeline image (built from ./warehouse). Postgres is the only long-running
-# service; api/ and web/ will be added here as they arrive.
+# Postgres, the read-only API (built from ./api, :8000) and the on-demand pipeline image (built
+# from ./warehouse). Postgres and api are the long-running services.
 #   cp .env.example .env
-#   docker compose up -d                                  # postgres
+#   docker compose up -d                                  # postgres + api
 #   docker compose build pipeline                         # the nfl-pipeline image, from ./warehouse
 #   docker compose run --rm pipeline backfill --start 2010  # first load (hours), then dbt build
 #   docker compose run --rm pipeline refresh              # current season + dbt build + truncate staging
 #   docker compose run --rm pipeline transform --full-refresh --select teams
-# Warehouse: postgresql://nfl:nfl@localhost:5432/nfl
+# Warehouse: postgresql://nfl:nfl@localhost:5432/nfl      API: http://localhost:8000/docs
+# The api connects as the read-only role nfl_reader (docker/postgres/init/02-reader-role.sh). On a
+# volume created before that script existed, apply it once:
+#   docker compose exec -T postgres bash /docker-entrypoint-initdb.d/02-reader-role.sh
 #
 # Scheduling is not a service here. Deployed, an Azure Container Apps Job runs `refresh` on a cron
 # (see deploy/azure); locally you run it by hand.
@@ -30,6 +33,28 @@ services:
       interval: 10s
       retries: 5
       start_period: 5s
+    restart: unless-stopped
+
+  api:
+    build: ./api
+    image: nfl-api:local
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NFL_DATABASE_URL: postgresql://nfl_reader:nfl_reader@postgres:5432/nfl
+      NFL_API_KEY: ${NFL_API_KEY:-}
+      NFL_API_CORS_ORIGINS: ${NFL_API_CORS_ORIGINS:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 30s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: unless-stopped
 
   pipeline:

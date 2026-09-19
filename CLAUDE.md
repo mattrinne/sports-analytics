@@ -37,7 +37,7 @@ What this means for work in this repo:
   rules in `docs/ui/` (all monospace, square, dark; green/red/gold = cover/loss/push and nothing
   else; team colours only as swatches). Stack and content priorities are still open, see
   `docs/ui-brainstorm.md`. It runs as a scale-to-zero Container App next to the pipeline job,
-  reads `nfl.*` (and `ops.*` for data health) directly or through a thin read-only API, and must
+  reads `nfl.*` (and `ops.*` for data health) through the read-only API in `api/`, and must
   also run locally against compose.
 
 ## Repo map
@@ -48,12 +48,13 @@ One folder per component; the root holds only what spans them. Each component ha
 | path | what |
 |---|---|
 | `warehouse/` | the data warehouse: `src/nfl_pipeline` (loader, runner, CLI), `dbt/` (clean, reference, nfl), `data/` (curated inputs), `tests/`, `scripts/`, `Dockerfile`, `pyproject.toml`. Own uv project: `cd warehouse` for `uv run ...`. Rules: `warehouse/CLAUDE.md`. |
-| `docker-compose.yaml` | local stack, run from the root: `postgres` plus the on-demand `pipeline` service (`build: ./warehouse`). `api`/`web` services join here later. |
-| `.env` / `.env.example` | read by compose only (`NFL_DATABASE_URL`, `NFL_START_SEASON`, `NFL_ALERT_WEBHOOK_URL`). A bare `uv run nfl-pipeline` sees exported env vars, not `.env`; its defaults point at the compose Postgres. |
-| `docker/postgres/init/` | Postgres bootstrap on first boot: `nfl` database, schemas, `search_path`. |
+| `api/` | read-only FastAPI over `nfl.*` and `ops.*`: `src/nfl_api`, `tests/`, `Dockerfile`, `pyproject.toml`. Own uv project: `cd api` for `uv run ...`. Connects as the read-only role `nfl_reader`. Rules: `api/CLAUDE.md`. |
+| `docker-compose.yaml` | local stack, run from the root: `postgres`, `api` (`build: ./api`, :8000) and the on-demand `pipeline` service (`build: ./warehouse`). |
+| `.env` / `.env.example` | read by compose only (`NFL_DATABASE_URL`, `NFL_START_SEASON`, `NFL_ALERT_WEBHOOK_URL`, `NFL_API_KEY`, `NFL_API_CORS_ORIGINS`). A bare `uv run nfl-pipeline` / `uv run uvicorn` sees exported env vars, not `.env`; their defaults point at the compose Postgres. |
+| `docker/postgres/init/` | Postgres bootstrap on first boot: `nfl` database, schemas, `search_path` (`01`), read-only role `nfl_reader` for the api (`02`, idempotent, also applied by hand to older volumes). |
 | `deploy/azure/` | infra runbook + idempotent `az` scripts (Flexible Server, Container Apps env, jobs). Will grow api/web sections. |
 | `docs/` | The Hook: `ui-brainstorm.md`, `ui/theme.md`, `ui/tokens.css`. |
-| future `api/`, `web/` | The Hook's read-only API and UI; each its own toolchain and `CLAUDE.md`. |
+| future `web/` | The Hook's UI; its own toolchain and `CLAUDE.md`. |
 
 **Hard rule from the user:** nothing downloaded at runtime is written to disk (no vendored
 dictionaries, no wikitext cache, dbt writes `target/`/logs to `/tmp` in containers, nflreadpy's
@@ -64,11 +65,13 @@ into the image, as is `warehouse/dbt/`: rebuild the image after changing either.
 ## Commands (repo root)
 
 ```bash
-docker compose up -d                               # postgres only
+docker compose up -d                               # postgres + api (http://localhost:8000/docs)
 docker compose build pipeline                      # image = what Azure runs, built from ./warehouse
+docker compose build api && docker compose up -d api   # rebuild the api after changing ./api
 docker compose run --rm pipeline refresh -d teams  # or backfill / transform / staging truncate
 docker compose exec -T postgres psql -U nfl -d nfl -c "select * from ops.runs order by run_id desc limit 5"
 cd warehouse && uv sync && uv run pytest && uv run ruff check src tests scripts
+cd api && uv sync && uv run pytest && uv run ruff check src tests
 ```
 
 Commit only when asked.
