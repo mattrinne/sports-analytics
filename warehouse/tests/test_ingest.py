@@ -24,3 +24,13 @@ def test_other_value_errors_propagate(monkeypatch):
     monkeypatch.setattr(nflreadpy, "load_participation", fake_loader)
     with pytest.raises(ValueError, match="something else"):
         fetch(REGISTRY["participation"], 2024)
+
+
+def test_normalize_lowercases_columns_and_stamps_load_time():
+    import polars as pl
+
+    from nfl_pipeline.ingest import normalize
+
+    out = normalize(pl.DataFrame({"GameID": [1], "Week": [2]}))
+    assert out.columns == ["gameid", "week", "_loaded_at"]
+    assert out.schema["_loaded_at"] == pl.Datetime("us", "UTC")

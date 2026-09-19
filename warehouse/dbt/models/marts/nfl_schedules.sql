@@ -1,25 +1,36 @@
+{#- Every mutable column with its Postgres type, in output order. Rendered into merge_update_columns,
+    the empty `existing` stub and the change-detection row() comparison so a column is added once. -#}
+{% set cols = [
+    ('season', 'smallint'), ('game_type', 'text'), ('week', 'smallint'), ('gameday', 'date'),
+    ('weekday', 'text'), ('gametime', 'time'), ('time_of_day', 'text'),
+    ('away_team_id', 'integer'), ('home_team_id', 'integer'),
+    ('away_score', 'smallint'), ('home_score', 'smallint'), ('result', 'smallint'), ('total', 'smallint'),
+    ('winning_team_id', 'integer'), ('winning_team_location', 'text'),
+    ('losing_team_id', 'integer'), ('losing_team_location', 'text'),
+    ('overtime', 'boolean'), ('location', 'text'), ('div_game', 'boolean'),
+    ('gsis_id', 'integer'), ('nfl_detail_id', 'text'), ('pfr_id', 'text'), ('pff_id', 'integer'),
+    ('espn_id', 'integer'), ('ftn_id', 'integer'),
+    ('away_rest', 'smallint'), ('home_rest', 'smallint'),
+    ('away_moneyline', 'smallint'), ('home_moneyline', 'smallint'),
+    ('spread_line', 'double precision'), ('away_spread_odds', 'smallint'), ('home_spread_odds', 'smallint'),
+    ('total_line', 'double precision'), ('over_odds', 'smallint'), ('under_odds', 'smallint'),
+    ('roof', 'text'), ('surface', 'text'), ('temp', 'smallint'), ('wind', 'smallint'),
+    ('away_coach_id', 'integer'), ('home_coach_id', 'integer'), ('referee_id', 'integer'), ('stadium_id', 'integer'),
+] %}
+{% set names = cols | map(attribute=0) | list %}
 {{
     config(
         alias='schedules',
         materialized='incremental',
-        incremental_strategy='merge',
         unique_key='game_id',
-        merge_update_columns=[
-            'season', 'game_type', 'week', 'gameday', 'weekday', 'gametime', 'time_of_day',
-            'away_team_id', 'home_team_id', 'away_score', 'home_score', 'result', 'total',
-            'winning_team_id', 'winning_team_location', 'losing_team_id', 'losing_team_location',
-            'overtime', 'gsis_id', 'nfl_detail_id', 'pfr_id', 'pff_id', 'espn_id', 'ftn_id',
-            'away_rest', 'home_rest', 'away_moneyline', 'home_moneyline', 'spread_line', 'total_line',
-            'temp', 'wind', 'away_coach_id', 'home_coach_id', 'referee_id', 'stadium_id', 'updated_at',
-        ],
-        on_schema_change='fail',
-        contract={'enforced': true},
-        persist_docs={'relation': true, 'columns': true},
+        merge_update_columns=names + ['updated_at'],
     )
 }}
 -- Game fact/dimension: one row per game in clean.schedules (1999+, played and scheduled), keyed by
 -- the integer game_id from reference.game_identities, with every team, coach, referee and venue
--- resolved to its warehouse key. gametime is kept as the source gives it (US Eastern); time_of_day
+-- resolved to its warehouse key. Closing lines and odds, the divisional/neutral-site flags and
+-- roof/surface are carried through untouched (surface is trimmed: nflverse has 'grass ' with a
+-- trailing space). gametime is kept as the source gives it (US Eastern); time_of_day
 -- buckets the kickoff in US Central time: morning before 12:00, noon 12:00-13:59, afternoon
 -- 14:00-16:59, night from 17:00. result and total are nflverse's home_score - away_score and
 -- home_score + away_score; winning/losing columns are NULL for ties and unplayed games.
@@ -52,6 +63,8 @@ with src as (
         case when s.result > 0 then at_.team_id when s.result < 0 then ht.team_id end as losing_team_id,
         case when s.result > 0 then 'away' when s.result < 0 then 'home' end           as losing_team_location,
         s.overtime,
+        s.location,
+        s.div_game,
         s.gsis                                                  as gsis_id,
         s.nfl_detail_id,
         s.pfr                                                   as pfr_id,
@@ -63,7 +76,13 @@ with src as (
         s.away_moneyline,
         s.home_moneyline,
         s.spread_line,
+        s.away_spread_odds,
+        s.home_spread_odds,
         s.total_line,
+        s.over_odds,
+        s.under_odds,
+        s.roof,
+        nullif(trim(s.surface), '')                             as surface,
         s.temp,
         s.wind,
         ac.coach_id                                             as away_coach_id,
@@ -86,18 +105,9 @@ existing as (
     {% if is_incremental() %}
     select * from {{ this }}
     {% else %}
-    select null::integer as game_id, null::smallint as season, null::text as game_type, null::smallint as week,
-           null::date as gameday, null::text as weekday, null::time as gametime, null::text as time_of_day,
-           null::integer as away_team_id, null::integer as home_team_id, null::smallint as away_score,
-           null::smallint as home_score, null::smallint as result, null::smallint as total,
-           null::integer as winning_team_id, null::text as winning_team_location,
-           null::integer as losing_team_id, null::text as losing_team_location, null::boolean as overtime,
-           null::integer as gsis_id, null::text as nfl_detail_id, null::text as pfr_id, null::integer as pff_id,
-           null::integer as espn_id, null::integer as ftn_id, null::smallint as away_rest, null::smallint as home_rest,
-           null::smallint as away_moneyline, null::smallint as home_moneyline, null::double precision as spread_line,
-           null::double precision as total_line, null::smallint as temp, null::smallint as wind,
-           null::integer as away_coach_id, null::integer as home_coach_id, null::integer as referee_id,
-           null::integer as stadium_id, null::timestamptz as created_at, null::timestamptz as updated_at
+    select null::integer as game_id,
+           {% for name, type in cols %}null::{{ type }} as {{ name }},
+           {% endfor %}null::timestamptz as created_at, null::timestamptz as updated_at
     where false
     {% endif %}
 )
@@ -108,16 +118,6 @@ select
 from src s
 left join existing e on e.game_id = s.game_id
 where e.game_id is null
-   or row(s.season, s.game_type, s.week, s.gameday, s.weekday, s.gametime, s.time_of_day,
-          s.away_team_id, s.home_team_id, s.away_score, s.home_score, s.result, s.total,
-          s.winning_team_id, s.winning_team_location, s.losing_team_id, s.losing_team_location,
-          s.overtime, s.gsis_id, s.nfl_detail_id, s.pfr_id, s.pff_id, s.espn_id, s.ftn_id,
-          s.away_rest, s.home_rest, s.away_moneyline, s.home_moneyline, s.spread_line, s.total_line,
-          s.temp, s.wind, s.away_coach_id, s.home_coach_id, s.referee_id, s.stadium_id)
+   or row({% for n in names %}s.{{ n }}{{ ', ' if not loop.last }}{% endfor %})
       is distinct from
-      row(e.season, e.game_type, e.week, e.gameday, e.weekday, e.gametime, e.time_of_day,
-          e.away_team_id, e.home_team_id, e.away_score, e.home_score, e.result, e.total,
-          e.winning_team_id, e.winning_team_location, e.losing_team_id, e.losing_team_location,
-          e.overtime, e.gsis_id, e.nfl_detail_id, e.pfr_id, e.pff_id, e.espn_id, e.ftn_id,
-          e.away_rest, e.home_rest, e.away_moneyline, e.home_moneyline, e.spread_line, e.total_line,
-          e.temp, e.wind, e.away_coach_id, e.home_coach_id, e.referee_id, e.stadium_id)
+      row({% for n in names %}e.{{ n }}{{ ', ' if not loop.last }}{% endfor %})

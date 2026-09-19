@@ -114,13 +114,15 @@ Analysis queries go against `clean.*`, joined to `nfl.*` keys through `reference
 - Team codes: 41 codes for 32 franchises across three systems (current nflverse, era codes
   `STL/SD/OAK`, GSIS `ARZ/BLT/CLV/HST/SL` in 2010–2015 rosters). `tests/assert_all_team_codes_resolve`
   fails the build on an unmapped code. `assert_stadium_names_unique_per_venue` warns (not fails) on
-  upstream mis-tags such as the 2026 Jaguars London game carrying `JAX00`.
+  new upstream mis-tags; the known one (2026 Jaguars London game carrying `JAX00`) is excluded in the test.
 - Not-unique sources: `player_stats_week` has NULL `player_id` placeholder rows; `rosters*` and
   `depth_charts` have exact duplicates and rows differing only in secondary columns → `_row_id`
   hashes all columns for those. `depth_charts` changed format in 2025 (weekly rows → `dt`
   snapshots with no week).
 - `participation` (NGS charting) lags a season; the current season is skipped
   (`SeasonUnavailable` → step `skipped`, dbt still runs). Coverage type exists on ~half of charted plays.
+  `SeasonUnavailable` is detected from the text of nflreadpy's `ValueError` ("Season must be
+  between"); if nflreadpy rewords it, skips become failures. `tests/test_ingest.py` pins the wording.
 - Early-September runs before nflverse publishes week 1 fail on pbp after retries and send one
   alert; expected until the files appear.
 - Postgres auth is plain user/password (`nfl`/`nfl`) locally; Azure uses the Flexible Server admin
@@ -132,8 +134,8 @@ From `warehouse/` (uv) and the repo root (compose):
 
 ```bash
 uv sync && uv run pytest && uv run ruff check src tests scripts
-uv run nfl-pipeline list | load pbp --season 2024 | refresh [-d x] [--keep-staging] | backfill --start 2010 [--full-refresh] | transform [--select x]
-uv run nfl-pipeline staging truncate -d pbp        # by hand; refresh/backfill already do it
+uv run nfl-pipeline list | load pbp --season 2024 | refresh [-d x] [--keep-staging] | backfill --start 2010 [--full-refresh] | transform [--select x] | current-season
+uv run nfl-pipeline staging truncate -d pbp -y     # by hand; refresh/backfill already do it (prompts without -y)
 cd dbt && uv run dbt build --profiles-dir .        # same as transform
 cd .. && docker compose up -d                      # postgres only (repo root)
 docker compose build pipeline && docker compose run --rm pipeline refresh -d teams   # image = what Azure runs

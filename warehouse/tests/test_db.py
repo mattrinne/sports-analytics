@@ -43,3 +43,28 @@ def test_pg_type_rejects_nested():
 )
 def test_widened_type(existing, incoming, expected):
     assert widened_type(existing, incoming) == expected
+
+
+class _Conn:
+    """Records SQL; lists two staging tables when asked."""
+
+    def __init__(self):
+        self.executed = []
+
+    def execute(self, query, params=None):
+        self.executed.append(str(query))
+        return [("pbp",), ("teams",)]
+
+
+def test_truncate_tables_none_means_all_and_empty_means_nothing():
+    from nfl_pipeline.db import truncate_tables
+
+    conn = _Conn()
+    assert truncate_tables(conn, "staging", None) == ["pbp", "teams"]
+    assert sum("TRUNCATE" in q for q in conn.executed) == 2
+    conn = _Conn()
+    assert truncate_tables(conn, "staging", []) == []
+    assert conn.executed == []
+    conn = _Conn()
+    assert truncate_tables(conn, "staging", ["teams"]) == ["teams"]
+    assert len(conn.executed) == 1

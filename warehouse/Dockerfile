@@ -19,7 +19,7 @@ ENV PATH=/app/.venv/bin:$PATH \
     PYTHONUNBUFFERED=1 \
     NFL_DBT_DIR=/app/dbt NFL_DATA_DIR=/app/data \
     DBT_TARGET_PATH=/tmp/dbt/target DBT_LOG_PATH=/tmp/dbt/logs DBT_SEND_ANONYMOUS_USAGE_STATS=false \
-    NFLREADPY_CACHE=off NFLREADPY_CACHE_DIR=/tmp/nflreadpy
+    NFLREADPY_CACHE=off
 USER nfl
 ENTRYPOINT ["nfl-pipeline"]
 CMD ["--help"]

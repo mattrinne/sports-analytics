@@ -159,3 +159,69 @@ def test_normalize_name_strips_markers_and_suffix_punctuation():
     assert normalize_name("Ken Norton Jr") == "Ken Norton Jr."
     assert normalize_name("Derius Swinton II") == "Derius Swinton II"
     assert normalize_name("  Rich  Bisaccia ") == "Rich Bisaccia"
+
+
+def _entry(role, coach, interim=False, start=None, end=None):
+    from nfl_pipeline.sources.wikipedia_staff import StaffEntry
+
+    return StaffEntry(
+        season=2023, team="X", role=role, title=role, coach=coach, is_interim=interim,
+        note=None, start_date=start, end_date=end,
+    )
+
+
+def test_infer_ranges_flags_undated_and_ambiguous_changes():
+    from nfl_pipeline.sources.wikipedia_staff import _infer_ranges
+
+    # one primary, one interim, no dates anywhere -> nothing to infer, flag both rows
+    undated = _infer_ranges([_entry("head_coach", "A"), _entry("head_coach", "B", interim=True)])
+    assert all("undated_change" in e.flags for e in undated)
+    # primary with an end date and interim with a start date already: nothing inferred, no flag
+    dated = _infer_ranges([
+        _entry("head_coach", "A", end=dt.date(2023, 11, 1)),
+        _entry("head_coach", "B", interim=True, start=dt.date(2023, 11, 1)),
+    ])
+    assert not any(e.flags for e in dated)
+    # two primaries, neither dated -> ambiguous
+    two = _infer_ranges([_entry("offensive_coordinator", "A"), _entry("offensive_coordinator", "B")])
+    assert all("ambiguous_multiple" in e.flags for e in two)
+    # two primaries where one carries a date -> order is known, not ambiguous
+    ordered = _infer_ranges([
+        _entry("offensive_coordinator", "A", end=dt.date(2023, 10, 1)),
+        _entry("offensive_coordinator", "B"),
+    ])
+    assert not any(e.flags for e in ordered)
+
+
+def test_overrides_replace_parsed_rows_for_the_same_season_team_role(tmp_path):
+    import polars as pl
+
+    from nfl_pipeline.sources.wikipedia_staff import SCHEMA, _apply_overrides, _load_overrides
+
+    csv = tmp_path / "overrides.csv"
+    csv.write_text(
+        "season,team,role,title,coach,is_interim,start_date,end_date,note,source_url\n"
+        "2023,CAR,head_coach,Head coach,Frank Reich,false,,2023-11-27,fired,\n"
+        "2023,CAR,head_coach,Interim head coach,Chris Tabor,true,2023-11-27,,,\n"
+        "2022,CAR,head_coach,Head coach,Matt Rhule,false,,,,\n"
+    )
+    overrides = _load_overrides(csv)
+    assert overrides.schema == pl.Schema(SCHEMA)
+    parsed = pl.DataFrame(
+        [
+            {"season": 2023, "team": "CAR", "role": "head_coach", "coach": "Somebody Wrong"},
+            {"season": 2023, "team": "CAR", "role": "offensive_coordinator", "coach": "Thomas Brown"},
+            {"season": 2023, "team": "KC", "role": "head_coach", "coach": "Andy Reid"},
+        ],
+        schema=SCHEMA,
+    )
+    out = _apply_overrides(parsed, overrides)
+    rows = {(r["team"], r["role"], r["coach"]) for r in out.iter_rows(named=True)}
+    assert rows == {
+        ("CAR", "head_coach", "Frank Reich"),
+        ("CAR", "head_coach", "Chris Tabor"),
+        ("CAR", "offensive_coordinator", "Thomas Brown"),
+        ("KC", "head_coach", "Andy Reid"),
+    }
+    assert 2022 not in out["season"].to_list()  # other seasons' overrides are ignored
+    assert _apply_overrides(parsed, _load_overrides(tmp_path / "missing.csv")).height == 3

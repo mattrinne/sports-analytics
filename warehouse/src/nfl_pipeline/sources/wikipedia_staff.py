@@ -1,4 +1,4 @@
-"""Coaching staff (head coach, OC, DC, ST coordinator) per team-season, parsed from the
+"""Coaching staff (head coach, OC, DC) per team-season, parsed from the
 `{{NFL final staff}}` block of Wikipedia's "<season> <Team> season" articles.
 
 Wikipedia etiquette: serial, throttled requests with a descriptive User-Agent. A whole season of
@@ -12,6 +12,7 @@ import json
 import logging
 import re
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
@@ -106,7 +107,9 @@ def _api_get(params: dict) -> dict:
             log.warning("wikipedia HTTP %s; sleeping %ss (attempt %d)", exc.code, wait, attempt + 1)
             time.sleep(wait)
             delay = min(delay * 2, 120)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as exc:
+            if attempt == 5:
+                raise RuntimeError("wikipedia: retries exhausted (non-JSON responses)") from exc
             log.warning("wikipedia returned non-JSON (rate limit text); sleeping %ss", delay)
             time.sleep(delay)
             delay = min(delay * 2, 120)
@@ -252,6 +255,8 @@ def parse_date(text: str, season: int) -> dt.date | None:
     if not m:
         return None
     month = _MONTH_NUM[m.group(1)]
+    # A season runs Sep-Feb: an undated January/February note (playoffs, post-season firings)
+    # belongs to the next calendar year. March-August dates are off-season moves of `season`.
     year = int(m.group(3)) if m.group(3) else (season if month >= 3 else season + 1)
     try:
         return dt.date(year, month, int(m.group(2)))
@@ -375,22 +380,19 @@ def _infer_ranges(entries: list[StaffEntry]) -> list[StaffEntry]:
 # ------------------------------------------------------------------------- dataset loader
 
 
-def teams_for_season(season: int) -> dict[str, str]:
-    """abbr -> nflverse team_name for every team that played that season."""
+def teams_for_season(sched: pl.DataFrame) -> dict[str, str]:
+    """abbr -> nflverse team_name for every team in that season's schedule."""
     import nflreadpy
 
-    sched = nflreadpy.load_schedules(season)
     teams = nflreadpy.load_teams()
     names = dict(zip(teams["team_abbr"].to_list(), teams["team_name"].to_list()))
     abbrs = sorted(set(sched["home_team"].to_list()) | set(sched["away_team"].to_list()))
     return {a: names.get(a, a) for a in abbrs}
 
 
-def week_dates_for_season(season: int) -> dict[str, dict[int, dt.date]]:
+def week_dates_for_season(sched: pl.DataFrame) -> dict[str, dict[int, dt.date]]:
     """team -> {week: game date} for regular-season games, used to resolve 'after Week N' notes."""
-    import nflreadpy
-
-    sched = nflreadpy.load_schedules(season).filter(pl.col("game_type") == "REG")
+    sched = sched.filter(pl.col("game_type") == "REG")
     out: dict[str, dict[int, dt.date]] = {}
     for row in sched.select(["week", "gameday", "home_team", "away_team"]).iter_rows(named=True):
         day = dt.date.fromisoformat(row["gameday"])
@@ -415,15 +417,17 @@ SCHEMA = {
 
 
 def load_coaching_staff(seasons: int) -> pl.DataFrame:
-    """Dataset loader: one row per (season, team, role, coach)."""
+    """Dataset loader: one row per (season, team, role, coach). `seasons` is the single season
+    ingest.fetch passes to every partitioned loader (named to match nflreadpy's signature)."""
     season = int(seasons)
     cfg = settings()
     import nflreadpy
 
     current = season >= nflreadpy.get_current_season()
     rows = []
-    teams = teams_for_season(season)
-    week_dates = week_dates_for_season(season)
+    sched = nflreadpy.load_schedules(season)
+    teams = teams_for_season(sched)
+    week_dates = week_dates_for_season(sched)
     titles = {abbr: article_title(abbr, name, season) for abbr, name in teams.items()}
     texts = fetch_wikitexts(list(titles.values()))
     # In-season articles transclude the team's live "Template:<Team> staff" instead of a final

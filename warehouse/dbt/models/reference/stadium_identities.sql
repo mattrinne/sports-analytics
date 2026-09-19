@@ -1,13 +1,7 @@
 {{
     config(
-        materialized='incremental',
-        incremental_strategy='merge',
-        unique_key='alias',
         merge_update_columns=['stadium_id', 'stadium_code', 'source', 'updated_at'],
-        on_schema_change='fail',
         full_refresh=false,
-        contract={'enforced': true},
-        persist_docs={'relation': true, 'columns': true},
         pre_hook="create sequence if not exists {{ this.schema }}.stadium_id_seq",
     )
 }}

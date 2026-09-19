@@ -71,7 +71,9 @@ class NullRecorder:
         return None
 
 
-class RunRecorder(NullRecorder):
+class RunRecorder:
+    """Writes ops.runs / ops.run_steps. Same interface as NullRecorder."""
+
     def __init__(self, conn: psycopg.Connection, run_id: int):
         self._conn = conn
         self._lock = threading.Lock()

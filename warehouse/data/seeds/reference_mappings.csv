@@ -1,14 +1,9 @@
 domain,source_system,source_value,canonical_value,valid_from,valid_to,note
 coach_name,wikipedia,Bill Davis,Billy Davis,,,same person; Billy is the usual spelling
 coach_name,wikipedia,Bobby Babich,Bob Babich,,,same person
-coach_name,wikipedia,Cameron Achord,Cam Achord,,,same person
-coach_name,wikipedia,Derius Swinton II,Derius Swinton,,,generational suffix
 coach_name,wikipedia,Pete Carmichael Jr.,Pete Carmichael,,,generational suffix
-coach_name,wikipedia,Ray Ventrone,Raymond Ventrone,,,same person
-coach_name,wikipedia,Richard Bisaccia,Rich Bisaccia,,,same person
 coach_name,nflverse,Klint Kubliak,Klint Kubiak,,,nflverse schedules typo
 coach_name,nflverse,Jay Rosburg,Jerry Rosburg,,,nflverse schedules spelling of the 2022 DEN interim HC
-coach_name,wikipedia,Bubba Ventrone,Raymond Ventrone,,,nickname of Raymond Ventrone
 team_abbr,,LA,LAR,,,Rams: nflverse uses LA in pbp/stats and schedules 2016+; LAR is the canonical code
 team_abbr,,STL,LAR,,,Rams in St. Louis (schedules/coaching_staff through 2015)
 team_abbr,,SL,LAR,,,Rams GSIS club code (rosters 2010-2015)

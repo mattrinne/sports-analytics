@@ -182,8 +182,8 @@ def ensure_indexes(
 def truncate_tables(
     conn: psycopg.Connection, schema: str, tables: list[str] | None = None
 ) -> list[str]:
-    """TRUNCATE the given tables in `schema` (all of them when None). Returns what was truncated."""
-    names = tables or [
+    """TRUNCATE the given tables in `schema` (all of them when None, nothing when []). Returns what was truncated."""
+    names = tables if tables is not None else [
         r[0]
         for r in conn.execute(
             "SELECT table_name FROM information_schema.tables "

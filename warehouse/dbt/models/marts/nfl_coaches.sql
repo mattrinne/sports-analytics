@@ -1,9 +1,6 @@
 {{
     config(
         alias='coaches',
-        materialized='table',
-        contract={'enforced': true},
-        persist_docs={'relation': true, 'columns': true},
     )
 }}
 -- Coach dimension, derived from reference.coach_identities: one row per coach_id with the

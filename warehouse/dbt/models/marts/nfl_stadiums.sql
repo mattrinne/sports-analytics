@@ -2,12 +2,8 @@
     config(
         alias='stadiums',
         materialized='incremental',
-        incremental_strategy='merge',
         unique_key='stadium_id',
         merge_update_columns=['stadium_code', 'stadium_name', 'roof', 'surface', 'first_season', 'last_season', 'updated_at'],
-        on_schema_change='fail',
-        contract={'enforced': true},
-        persist_docs={'relation': true, 'columns': true},
     )
 }}
 -- Venue dimension: one row per venue, keyed by the integer stadium_id minted in

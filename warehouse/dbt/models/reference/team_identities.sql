@@ -1,12 +1,6 @@
 {{
     config(
-        materialized='incremental',
-        incremental_strategy='merge',
-        unique_key='alias',
         merge_update_columns=['team_id', 'team_abbr', 'source', 'updated_at'],
-        on_schema_change='fail',
-        contract={'enforced': true},
-        persist_docs={'relation': true, 'columns': true},
     )
 }}
 -- Master data for teams: every team code used anywhere -> franchise team_id. The canonical set

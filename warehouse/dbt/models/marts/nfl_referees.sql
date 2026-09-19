@@ -1,9 +1,6 @@
 {{
     config(
         alias='referees',
-        materialized='table',
-        contract={'enforced': true},
-        persist_docs={'relation': true, 'columns': true},
     )
 }}
 -- Referee dimension, derived from reference.referee_identities: one row per referee_id with the

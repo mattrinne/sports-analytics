@@ -13,7 +13,6 @@ nfl:
       dbname: "{{ env_var('NFL_DB_NAME', 'nfl') }}"
       sslmode: "{{ env_var('NFL_DB_SSLMODE', 'prefer') }}"
       schema: clean
-      # 1 thread: models that reference the same parents (players, teams, games) take
-      # ShareRowExclusive locks on them while creating foreign keys and deadlock when run in
-      # parallel. The whole project builds in well under a minute anyway.
+      # 1 thread: parallel constraint DDL on models sharing parents deadlocked when this project
+      # still declared foreign keys; kept because the whole project builds in well under a minute.
       threads: 1

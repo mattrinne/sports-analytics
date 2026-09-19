@@ -6,7 +6,7 @@ bigints -> smallint/integer, ISO text dates -> date/timestamptz. Every model is 
 merge on a primary key (natural key where the data has one, otherwise a `_row_id` hash), so
 staging can be truncated after a load without losing anything.
 
-Run against a populated staging schema (0/1 flags are detected from pg_stats):
+Run against a populated staging schema (0/1 flags are detected by scanning the data):
 
     uv run python scripts/gen_clean_models.py            # every table in staging
     uv run python scripts/gen_clean_models.py pbp teams
@@ -73,7 +73,7 @@ INTEGER_COLS = {
 # bigint/whole-number double columns that fit smallint get smallint; the rest integer.
 # Yards and other counts that can exceed 32767 over a game never do, but ids can -> integer.
 SMALLINT_MAX = 32767
-# Columns that pg_stats sees as {0,1} but are measures, not flags.
+# Double columns whose values happen to be all 0/1 but are measures, not flags.
 NOT_FLAGS = {
     "comp_air_epa",
     "comp_yac_epa",

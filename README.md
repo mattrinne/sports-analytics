@@ -12,7 +12,7 @@ nflverse parquet (GitHub releases)
  warehouse/src      ──COPY──▶  Postgres  staging.*  (landing zone: 1:1 mirror of the files, truncatable)
                                         clean.*    (dbt: same tables and columns, types fixed, upserted by key — the durable copy)
                                         reference.* (dbt: curated mappings + identity tables — every source spelling/code → key)
-                                        nfl.*      (dbt: persisted dimensions derived from reference — coaches, teams; no views)
+                                        nfl.*      (dbt: persisted marts derived from reference + clean — teams, coaches, referees, stadiums, schedules, coaching_tenures; views only re-present them)
         ▲
  nfl-pipeline refresh   (scheduled container: Azure Container Apps Job, Tue+Wed; current season → dbt build → truncate staging)
  nfl-pipeline backfill  (manual: season range → dbt build → truncate staging)     ops.*  run history for both
@@ -66,9 +66,7 @@ The runbook and idempotent `az` scripts are in [`deploy/azure/`](deploy/azure/RE
 
 ## Roadmap
 
-- **Current betting lines.** Historical closing lines are already in `clean.schedules`. For live/opening
-  lines the plan is an append-only `staging.odds_snapshots` table (upserted into clean like everything else) fed by
-  [The Odds API](https://the-odds-api.com/) (free tier: 500 credits/month) on a Thu/Sat/Sun
-  cadence, as its own CLI command and scheduled job. `ODDS_API_KEY` is reserved in `.env.example`.
+- **Opening lines / line movement.** Only closing lines are in nflverse. A separate source with its
+  own identity work would be needed; deferred.
 - Extend history: lower `NFL_START_SEASON` in `.env` or run `backfill --start 1999`. pbp/stats go
   back to 1999.

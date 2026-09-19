@@ -32,12 +32,28 @@ models:
     reference:
       # reference data (RDM: reference_mappings seed) and master data (MDM: *_identities) —
       # every source spelling/code resolved to a key. Dimensions in marts derive from these.
+      # Identity tables all merge on `alias`; each model adds its merge_update_columns, sequence
+      # pre_hook and (for minted ids) full_refresh=false.
       +schema: reference
+      +materialized: incremental
+      +incremental_strategy: merge
+      +unique_key: alias
+      +on_schema_change: fail
+      +contract:
+        enforced: true
+      +persist_docs:
+        relation: true
+        columns: true
     marts:
       +schema: nfl
       +materialized: table  # persisted marts; incremental/view models override per model
+      +incremental_strategy: merge
+      +on_schema_change: fail
+      +contract:
+        enforced: true
       +persist_docs:
         relation: true
+        columns: true
 
 seeds:
   nfl_warehouse:

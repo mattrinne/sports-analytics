@@ -63,7 +63,6 @@ REGISTRY: dict[str, Dataset] = {
             table="rosters",
             loader="load_rosters",
             description="Season-level rosters.",
-            min_season=1999,
             indexes=(("season", "team"), ("gsis_id",)),
         ),
         Dataset(
@@ -131,14 +130,6 @@ REGISTRY: dict[str, Dataset] = {
         ),
     ]
 }
-
-
-def seasonal_datasets() -> list[Dataset]:
-    return [d for d in REGISTRY.values() if d.partitioned]
-
-
-def full_replace_datasets() -> list[Dataset]:
-    return [d for d in REGISTRY.values() if not d.partitioned]
 
 
 def seasons_for(dataset: Dataset, start: int, end: int) -> list[int]:

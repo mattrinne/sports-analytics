@@ -26,8 +26,7 @@ amber version for its brown cast. Tokens and rules are in `docs/ui/`. Earlier re
 Neutral analytics as the base system with Trading desk density; superseded. Two rules that
 matter more than the theme: (1) team colours are *data*, shown only as small swatches / logos
 and never as the palette for a 32-series chart; (2) green/red/amber mean cover / loss / push
-everywhere and nothing else. Ship light and dark from the start via tokens; dark is the
-working mode, light for reading and screenshots.
+everywhere and nothing else. Single dark theme, no light mode (see `ui/tokens.css`).
 
 ## Content — organised by the question a bettor asks
 

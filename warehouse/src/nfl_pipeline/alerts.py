@@ -41,10 +41,7 @@ def notify(text: str, url: str | None = None, *, timeout: float = 5.0, opener=No
         method="POST",
     )
     try:
-        response = opener(request, timeout=timeout)
-        close = getattr(response, "close", None)
-        if close:
-            close()
+        opener(request, timeout=timeout).close()
         return True
     except Exception as exc:  # noqa: BLE001 - alerting must never fail the run
         log.warning("webhook notification failed: %s", exc)

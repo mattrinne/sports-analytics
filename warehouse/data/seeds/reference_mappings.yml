@@ -24,7 +24,7 @@ seeds:
               arguments:
                 values: [coach_name, team_abbr, coach_role, referee_name, stadium]
       - name: source_system
-        description: Source the spelling comes from (wikipedia, nflverse) or empty for any.
+        description: Where the spelling was seen (wikipedia, nflverse); informational only. Models apply a mapping to the spelling wherever it appears.
       - name: source_value
         description: The spelling as it appears in the source.
         data_tests:
@@ -35,5 +35,7 @@ seeds:
           - not_null
       - name: valid_from
         description: First season the mapping applies (empty = always). Honoured by nfl.stadiums; identity tables apply mappings to every season.
+      - name: note
+        description: Why the mapping exists (free text, for humans).
       - name: valid_to
         description: Last season the mapping applies (empty = always). Honoured by nfl.stadiums; identity tables apply mappings to every season.

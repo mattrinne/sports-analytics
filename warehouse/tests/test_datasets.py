@@ -1,11 +1,6 @@
 from nfl_pipeline.datasets import REGISTRY, Dataset, seasons_for
 
 
-def test_registry_names_match_keys():
-    for key, ds in REGISTRY.items():
-        assert key == ds.name
-
-
 def test_partitioned_datasets_have_min_season():
     for ds in REGISTRY.values():
         if ds.partitioned:

@@ -12,7 +12,7 @@ scripts/gen_clean_models.py, when it does not exist yet):
 
 Usage (after `dbt build` of the model, with contracts off or already matching):
     uv run python scripts/gen_dbt_columns.py            # all clean models
-    uv run python scripts/gen_dbt_columns.py plays games
+    uv run python scripts/gen_dbt_columns.py pbp schedules
 """
 
 from __future__ import annotations
@@ -51,10 +51,6 @@ def table_columns(conn: psycopg.Connection, schema: str, table: str) -> list[tup
     ).fetchall()
 
 
-def describe(column: str) -> str | None:
-    return SYSTEM_COLUMNS.get(column)
-
-
 def skeleton(model: str) -> dict:
     pk = PRIMARY_KEYS.get(model) or ["_row_id"]
     return {
@@ -87,10 +83,8 @@ def refresh(conn: psycopg.Connection, model: str) -> int:
         col["data_type"] = data_type
         if name in RESERVED:  # dbt renders contract DDL unquoted; these need quoting in Postgres
             col["quote"] = True
-        if not col.get("description"):
-            desc = describe(name)
-            if desc:
-                col["description"] = desc
+        if not col.get("description") and name in SYSTEM_COLUMNS:
+            col["description"] = SYSTEM_COLUMNS[name]
         # keep key order stable: name, data_type, description, then the rest
         ordered = {k: col[k] for k in ("name", "data_type", "description") if k in col}
         ordered.update({k: v for k, v in col.items() if k not in ordered})

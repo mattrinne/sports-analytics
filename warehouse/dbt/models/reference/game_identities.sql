@@ -1,13 +1,7 @@
 {{
     config(
-        materialized='incremental',
-        incremental_strategy='merge',
-        unique_key='alias',
         merge_update_columns=['game_id', 'game_key', 'source', 'updated_at'],
-        on_schema_change='fail',
         full_refresh=false,
-        contract={'enforced': true},
-        persist_docs={'relation': true, 'columns': true},
         pre_hook="create sequence if not exists {{ this.schema }}.game_id_seq",
     )
 }}

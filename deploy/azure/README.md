@@ -58,7 +58,7 @@ export NFL_DATABASE_URL='postgresql://nfladmin:<password>@<host>:5432/nfl?sslmod
 # first load: hours on B1ms. Either from Azure …
 az containerapp job start -g "$AZ_RG" -n "$JOB_MANUAL" --args backfill --start 2010 --workers 2
 # … or from the laptop (firewall rule for your IP exists):
-NFL_DATABASE_URL="$NFL_DATABASE_URL" uv run nfl-pipeline backfill --start 2010
+NFL_DATABASE_URL="$NFL_DATABASE_URL" uv run --project warehouse nfl-pipeline backfill --start 2010
 ```
 
 Watch a run:
@@ -67,6 +67,14 @@ Watch a run:
 az containerapp job execution list -g "$AZ_RG" -n "$JOB_REFRESH" -o table
 az containerapp job logs show -g "$AZ_RG" -n "$JOB_REFRESH" --container "$JOB_REFRESH" --follow
 psql "$NFL_DATABASE_URL" -c "select run_id, command, status, started_at, finished_at, error from ops.runs order by 1 desc limit 5"
+```
+
+A deploy is good when a small manual run succeeds end to end:
+
+```bash
+az containerapp job start -g "$AZ_RG" -n "$JOB_MANUAL" --args refresh -d teams
+az containerapp job execution list -g "$AZ_RG" -n "$JOB_MANUAL" -o table   # newest row: Status Succeeded
+psql "$NFL_DATABASE_URL" -Atc "select command, status from ops.runs order by run_id desc limit 1"   # refresh|success
 ```
 
 Roll a new image: build and push a new tag as above, then `IMAGE=ghcr.io/<owner>/nfl-pipeline:<sha> ./deploy/azure/02-job.sh`
@@ -78,10 +86,8 @@ Roll a new image: build and push a new tag as above, then `IMAGE=ghcr.io/<owner>
   overnight, so the hour of drift does not matter.
 - `--replica-retry-limit 0`: retries happen inside the command (`--retries 2`, 30 s / 60 s). A job
   that exits 1 shows as Failed in the execution list and, with a webhook set, sends one message.
-- Every `refresh`/`backfill` truncates staging after a green dbt build, so the 32 GiB volume holds
-  only `clean.*` (~2.5 GB for 2010+). A standalone `transform --full-refresh` would rebuild from
-  empty staging: use `backfill --full-refresh` instead (load → rebuild → truncate in one run), or
-  `backfill --keep-staging` first.
+- Staging is truncated after every green dbt build, so the 32 GiB volume holds only `clean.*`
+  (~2.5 GB for 2010+). Full-refresh rules: `warehouse/CLAUDE.md` (dbt conventions).
 - Memory: a pbp season peaks around 0.5 GB in the loader; the default 4 workers fit in 2 GiB for a
   refresh. Use `--workers 2` for backfills in the container.
 - Firewall: `--public-access 0.0.0.0` allows Azure services (the job) plus the laptop rule. Tighten

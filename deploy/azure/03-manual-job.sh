@@ -8,14 +8,16 @@
 set -euo pipefail
 : "${NFL_DATABASE_URL:?set NFL_DATABASE_URL in your shell}"
 
+SECRETS=("database-url=$NFL_DATABASE_URL")
+ENV_VARS=(NFL_DATABASE_URL=secretref:database-url)
+if [[ -n "${NFL_ALERT_WEBHOOK_URL:-}" ]]; then
+  SECRETS+=("webhook-url=$NFL_ALERT_WEBHOOK_URL")
+  ENV_VARS+=(NFL_ALERT_WEBHOOK_URL=secretref:webhook-url)
+fi
 COMMON=(
   --image "$IMAGE" --cpu "$JOB_CPU" --memory "$JOB_MEMORY"
-  --secrets "database-url=$NFL_DATABASE_URL" "webhook-url=${NFL_ALERT_WEBHOOK_URL:-unset}"
-  --env-vars NFL_DATABASE_URL=secretref:database-url NFL_START_SEASON=2010
+  --secrets "${SECRETS[@]}" --env-vars "${ENV_VARS[@]}"
 )
-if [[ -n "${NFL_ALERT_WEBHOOK_URL:-}" ]]; then
-  COMMON+=(NFL_ALERT_WEBHOOK_URL=secretref:webhook-url)
-fi
 
 if az containerapp job show -g "$AZ_RG" -n "$JOB_MANUAL" --output none 2>/dev/null; then
   az containerapp job update -g "$AZ_RG" -n "$JOB_MANUAL" "${COMMON[@]}" --args --help --output none

@@ -48,7 +48,7 @@ class Harness:
     def run(self, plan, **opts):
         return run_pipeline(
             "refresh", plan, season=2026, args={}, opts=PipelineOptions(retry_delay=0, **opts),
-            datasets=[s.dataset for s in plan], load=self.load, build=self.build,
+            load=self.load, build=self.build,
             truncate=self.truncate, recorder_factory=lambda *a: self.recorder,
             notify=lambda text: self.notified.append(text) or True,
         )

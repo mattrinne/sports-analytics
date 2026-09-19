@@ -15,7 +15,6 @@ class Settings:
     dbt_dir: Path  # dbt project: clean + nfl layers
     staging_schema: str = "staging"  # landing zone, truncatable; clean is the durable copy
     clean_schema: str = "clean"
-    analytics_schema: str = "nfl"
 
 
 def settings() -> Settings:

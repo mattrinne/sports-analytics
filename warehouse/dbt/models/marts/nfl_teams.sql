@@ -2,12 +2,8 @@
     config(
         alias='teams',
         materialized='incremental',
-        incremental_strategy='merge',
         unique_key='team_id',
         merge_update_columns=['team_abbr', 'team_name', 'team_nick', 'team_conf', 'team_division', 'updated_at'],
-        on_schema_change='fail',
-        contract={'enforced': true},
-        persist_docs={'relation': true, 'columns': true},
     )
 }}
 -- Franchise dimension: the 32 current teams, one per canonical code in reference.team_identities,

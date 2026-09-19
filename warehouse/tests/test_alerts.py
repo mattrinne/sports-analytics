@@ -1,3 +1,4 @@
+import io
 import json
 
 from nfl_pipeline.alerts import format_message, notify
@@ -12,7 +13,7 @@ class Opener:
         self.requests.append((request, timeout))
         if self.error:
             raise self.error
-        return object()
+        return io.BytesIO()
 
 
 def test_posts_json_with_both_keys():

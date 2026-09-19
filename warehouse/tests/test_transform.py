@@ -25,3 +25,21 @@ def test_dbt_command():
     assert dbt_command(Path("/x/dbt")) == base
     assert dbt_command(Path("/x/dbt"), full_refresh=True, extra=["--select", "teams"]) == [
         *base, "--full-refresh", "--select", "teams"]
+
+
+def test_dbt_build_runs_command_with_dbt_env_and_returns_exit_code(monkeypatch):
+    from types import SimpleNamespace
+
+    from nfl_pipeline.transform import dbt_build
+
+    monkeypatch.setenv("NFL_DATABASE_URL", "postgresql://nfl:nfl@db.example/nfl")
+    calls = []
+
+    def fake_run(cmd, env, check):
+        calls.append((cmd, env, check))
+        return SimpleNamespace(returncode=3)
+
+    assert dbt_build(full_refresh=True, extra=["--select", "x"], run=fake_run) == 3
+    (cmd, env, check), = calls
+    assert cmd[:2] == ["dbt", "build"] and "--full-refresh" in cmd and cmd[-2:] == ["--select", "x"]
+    assert env["NFL_DB_HOST"] == "db.example" and check is False

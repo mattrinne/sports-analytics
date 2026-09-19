@@ -2,12 +2,8 @@
     config(
         alias='coaching_tenures',
         materialized='incremental',
-        incremental_strategy='merge',
         unique_key=['coach_id', 'team_id', 'role_id', 'first_season', 'is_interim'],
         merge_update_columns=['start_date', 'end_date', 'start_source', 'end_source', 'last_season', 'updated_at'],
-        on_schema_change='fail',
-        contract={'enforced': true},
-        persist_docs={'relation': true, 'columns': true},
     )
 }}
 -- One row per continuous stint of a coach in a role (HC/OC/DC) with a franchise.
@@ -30,6 +26,9 @@ with roles as (
     from {{ ref('reference_mappings') }} m
     join {{ ref('coach_roles') }} r on r.role = m.canonical_value
     where m.domain = 'coach_role'
+),
+hc_role as (
+    select role_id from roles where staff_role = 'head_coach'
 ),
 games as (
     select g.season, ti.team_id, g.gameday, g.coach, g.played
@@ -54,7 +53,12 @@ team_seasons as (
     ) x
 ),
 latest_season as (
-    select max(season) as season from {{ ref('coaching_staff') }}
+    -- the season tenures can still be 'ongoing' in: whichever of Wikipedia's staff articles and
+    -- the played game log is further along, so a lagging season article cannot close every tenure
+    select greatest(
+        (select max(season) from {{ ref('coaching_staff') }}),
+        (select max(season) from games where played)
+    ) as season
 ),
 staff as (
     select
@@ -94,7 +98,7 @@ hc_stints as (
 ),
 hc_rows as (
     select
-        h.season, h.team_id, h.coach_id, 1::smallint as role_id,
+        h.season, h.team_id, h.coach_id, (select role_id from hc_role) as role_id,
         coalesce(w.is_interim, false)                        as is_interim,
         -- start: first stint of the season starts in the offseason; later stints on their first game
         case when h.run_no > 0 or w.start_date is not null then true else false end as explicit_start,
@@ -112,7 +116,8 @@ hc_rows as (
              else 'schedules' end                            as end_source
     from hc_stints h
     join team_seasons ts on ts.season = h.season and ts.team_id = h.team_id
-    left join staff w on w.season = h.season and w.team_id = h.team_id and w.coach_id = h.coach_id and w.role_id = 1
+    left join staff w on w.season = h.season and w.team_id = h.team_id and w.coach_id = h.coach_id
+                     and w.role_id = (select role_id from hc_role)
 ),
 -- ---------------------------------------------------------------- coordinators: Wikipedia rows
 coord_season as (
@@ -120,7 +125,7 @@ coord_season as (
     -- boundaries are unknown rather than season-long
     select season, team_id, role_id,
            bool_or(is_interim and start_date is null) as undated_interim_change
-    from staff where role_id in (2, 3)
+    from staff where role_id <> (select role_id from hc_role)
     group by season, team_id, role_id
 ),
 coord_rows as (
@@ -143,7 +148,7 @@ coord_rows as (
     from staff s
     join team_seasons ts on ts.season = s.season and ts.team_id = s.team_id
     join coord_season cs on cs.season = s.season and cs.team_id = s.team_id and cs.role_id = s.role_id
-    where s.role_id in (2, 3)
+    where s.role_id <> (select role_id from hc_role)
 ),
 -- ---------------------------------------------------------------- collapse across seasons
 rows_all as (

@@ -40,8 +40,7 @@ def load(
     """Load one dataset (one season for seasonal datasets)."""
     from .ingest import load_dataset
 
-    if dataset not in REGISTRY:
-        raise typer.BadParameter(f"unknown dataset {dataset!r}; see `nfl-pipeline list`")
+    _check_datasets([dataset])
     summary = load_dataset(dataset, season)
     typer.echo(summary)
 
@@ -53,11 +52,11 @@ def _check_datasets(datasets: list[str] | None) -> list[str] | None:
     return datasets or None
 
 
-def _run(command: str, plan, *, season: int | None, args: dict, datasets, **options) -> None:
+def _run(command: str, plan, *, season: int | None, args: dict, **options) -> None:
     from .pipeline import PipelineOptions, run_pipeline
 
     opts = PipelineOptions(**options)
-    raise typer.Exit(run_pipeline(command, plan, season=season, args=args, opts=opts, datasets=datasets))
+    raise typer.Exit(run_pipeline(command, plan, season=season, args=args, opts=opts))
 
 
 _DATASETS = typer.Option(None, "--dataset", "-d", help="Subset of datasets (default: all).")
@@ -104,7 +103,6 @@ def refresh(
         refresh_plan(season, datasets),
         season=season,
         args={"datasets": datasets, "full_refresh": full_refresh, "truncate_staging": truncate_staging},
-        datasets=datasets,
         workers=workers,
         retries=retries,
         retry_delay=retry_delay,
@@ -141,7 +139,6 @@ def backfill(
         backfill_plan(start, end, datasets),
         season=end,
         args={"start": start, "end": end, "datasets": datasets, "full_refresh": full_refresh},
-        datasets=datasets,
         workers=workers,
         retries=retries,
         retry_delay=retry_delay,
@@ -154,7 +151,7 @@ def backfill(
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def transform(dbt_args: list[str] = typer.Argument(None, help="Extra args passed to `dbt build`.")):
-    """Rebuild the clean and nfl layers: `dbt build` on the whole project (see dbt/README)."""
+    """Rebuild the clean and nfl layers: `dbt build` on the whole project (see README.md, "Clean layer")."""
     from .transform import dbt_build
 
     raise typer.Exit(dbt_build(extra=dbt_args or []))

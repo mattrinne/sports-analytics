@@ -9,11 +9,10 @@
 # Warehouse: postgresql://nfl:nfl@localhost:5432/nfl
 #
 # Scheduling is not a service here. Deployed, an Azure Container Apps Job runs `refresh` on a cron
-# (see deploy/azure). Locally, if you want it automatic, a crontab line does it:
-#   0 8 * * 2,3 cd ~/workspace/sports-analytics && docker compose run --rm pipeline refresh >> ~/Library/Logs/nfl-refresh.log 2>&1
+# (see deploy/azure); locally you run it by hand.
 #
-# Every refresh/backfill truncates staging after a green dbt build (clean.* is the durable copy);
-# pass --keep-staging to keep it, e.g. before a standalone `transform --full-refresh`.
+# Staging is truncated after every green dbt build; the rule and its exceptions are in
+# warehouse/CLAUDE.md (Layers, dbt conventions).
 
 services:
   postgres:
@@ -44,11 +43,10 @@ services:
       NFL_DATABASE_URL: postgresql://nfl:nfl@postgres:5432/nfl
       NFL_START_SEASON: ${NFL_START_SEASON:-2010}
       NFL_ALERT_WEBHOOK_URL: ${NFL_ALERT_WEBHOOK_URL:-}
-      # nflverse parquet files are cached on a named volume for a day so re-runs skip the download.
-      # (/cache is owned by the image's `nfl` user; the volume inherits that on first creation.)
+      # nflverse parquet files are cached on a named volume (nflreadpy's default duration is a day)
+      # so re-runs skip the download. /cache is owned by the image's `nfl` user.
       NFLREADPY_CACHE: filesystem
       NFLREADPY_CACHE_DIR: /cache/nflreadpy
-      NFLREADPY_CACHE_DURATION: "86400"
     volumes:
       - pipeline-cache:/cache
     depends_on:

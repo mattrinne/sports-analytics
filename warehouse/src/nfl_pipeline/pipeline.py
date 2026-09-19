@@ -34,7 +34,6 @@ def run_pipeline(
     season: int | None,
     args: dict,
     opts: PipelineOptions,
-    datasets: list[str] | None = None,
     load: Loader | None = None,
     build: Callable[..., int] | None = None,
     truncate: Callable[[list[str] | None], list[str]] | None = None,

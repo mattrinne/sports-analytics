@@ -5,7 +5,8 @@ models:
       Game table (nfl.schedules): one row per game in clean.schedules, 1999+, played and scheduled,
       keyed by the integer game_id minted in reference.game_identities, with teams, head coaches,
       referee and venue resolved to warehouse keys and the external ids (GSIS, PFR, PFF, ESPN, FTN)
-      kept for joins to other sources. Incremental: a row is rewritten only when an attribute changes.
+      kept for joins to other sources. Closing lines, odds and the divisional / neutral-site / roof /
+      surface splits come straight from nflverse. Incremental: a row is rewritten only when an attribute changes.
     constraints:
       - type: primary_key
         columns: [game_id]
@@ -13,11 +14,6 @@ models:
       - name: game_id
         data_type: integer
         description: Surrogate key from reference.game_identities (resolve clean.*.game_id / old_game_id through alias).
-        data_tests:
-          - relationships:
-              arguments:
-                to: ref('game_identities')
-                field: game_id
       - name: season
         data_type: smallint
         description: Season.
@@ -113,6 +109,16 @@ models:
       - name: overtime
         data_type: boolean
         description: Game went to overtime.
+      - name: location
+        data_type: text
+        description: Home when the home team is in its own stadium, Neutral for neutral sites (nflverse value; London/Germany/Mexico games, Super Bowls).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [Home, Neutral]
+      - name: div_game
+        data_type: boolean
+        description: Both teams in the same division.
       - name: gsis_id
         data_type: integer
         description: NFL GSIS game id (clean.schedules.gsis).
@@ -146,9 +152,31 @@ models:
       - name: spread_line
         data_type: double precision
         description: Closing spread (positive = home favoured, nflverse convention).
+      - name: away_spread_odds
+        data_type: smallint
+        description: Closing odds (American) for the away team to cover; nflverse has them from 2006, sparse before 2010.
+      - name: home_spread_odds
+        data_type: smallint
+        description: Closing odds (American) for the home team to cover.
       - name: total_line
         data_type: double precision
         description: Closing over/under.
+      - name: over_odds
+        data_type: smallint
+        description: Closing odds (American) on the over.
+      - name: under_odds
+        data_type: smallint
+        description: Closing odds (American) on the under.
+      - name: roof
+        data_type: text
+        description: outdoors, open, closed or dome (nflverse value); NULL when unknown.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [outdoors, open, closed, dome]
+      - name: surface
+        data_type: text
+        description: Playing surface as nflverse names it (grass, fieldturf, astroturf, ...), trimmed; NULL when unknown.
       - name: temp
         data_type: smallint
         description: Kickoff temperature (F), outdoor games.

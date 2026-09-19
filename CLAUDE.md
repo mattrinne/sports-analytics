@@ -49,7 +49,7 @@ One folder per component; the root holds only what spans them. Each component ha
 |---|---|
 | `warehouse/` | the data warehouse: `src/nfl_pipeline` (loader, runner, CLI), `dbt/` (clean, reference, nfl), `data/` (curated inputs), `tests/`, `scripts/`, `Dockerfile`, `pyproject.toml`. Own uv project: `cd warehouse` for `uv run ...`. Rules: `warehouse/CLAUDE.md`. |
 | `docker-compose.yaml` | local stack, run from the root: `postgres` plus the on-demand `pipeline` service (`build: ./warehouse`). `api`/`web` services join here later. |
-| `.env` / `.env.example` | shared by compose and the CLI (`NFL_DATABASE_URL`, `NFL_START_SEASON`, `NFL_ALERT_WEBHOOK_URL`). |
+| `.env` / `.env.example` | read by compose only (`NFL_DATABASE_URL`, `NFL_START_SEASON`, `NFL_ALERT_WEBHOOK_URL`). A bare `uv run nfl-pipeline` sees exported env vars, not `.env`; its defaults point at the compose Postgres. |
 | `docker/postgres/init/` | Postgres bootstrap on first boot: `nfl` database, schemas, `search_path`. |
 | `deploy/azure/` | infra runbook + idempotent `az` scripts (Flexible Server, Container Apps env, jobs). Will grow api/web sections. |
 | `docs/` | The Hook: `ui-brainstorm.md`, `ui/theme.md`, `ui/tokens.css`. |
