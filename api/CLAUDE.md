@@ -1,21 +1,20 @@
 # api — working notes for Claude
 
 Read-only FastAPI over the warehouse marts. This folder is its own uv project; run `uv ...` from
-here and `docker compose ...` from the repo root. The root `CLAUDE.md` has the purpose and repo map.
+here and `docker compose ...` from the repo root. The root `CLAUDE.md` has the rules that span
+components; `README.md` here has the routes, filters and environment variables; `docs/commands.md`
+has every command. Nothing below repeats them.
 
 ## What it is
 
-- Reads `nfl.*` (marts) and `ops.*` (run history) and nothing else, always schema-qualified. It
-  connects as the read-only role `nfl_reader` in compose (`docker/postgres/init/02-reader-role.sh`:
-  SELECT on `nfl` and `ops`, `default_transaction_read_only`, 15 s `statement_timeout`); any URL
-  works locally, the laptop default is `nfl:nfl@localhost`.
-- Routes: `/teams`, `/coaches` (+ `/{id}/tenures` from `nfl.coaching_tenures_detail`), `/referees`,
-  `/stadiums` (complete lists and `/{id}`), `/games` (filtered, sorted, paginated `Page[Game]`) and
-  `/games/{game_id}`, `/ops/runs?limit=`, `/health`. OpenAPI at `/docs`.
-- Auth: `NFL_API_KEY` set → every data route requires `X-API-Key` (`auth.py`); unset or empty →
-  open. Unauthenticated by construction: `/health` (registered on the app, everything else on the
-  `protected` router) and FastAPI's `/docs`, `/redoc`, `/openapi.json`, which expose the schema but
-  no data and are deliberately left open so Swagger's Authorize button works.
+- Reads `nfl.*` (marts) and `ops.*` (run history) and nothing else, always schema-qualified. In
+  compose it connects as the read-only role `nfl_reader`; the role's privileges are defined in
+  `docker/postgres/init/02-reader-role.sh` (the script is the documentation). Any URL works
+  locally; the laptop default is `nfl:nfl@localhost`.
+- Auth is enforced by construction: `/health` is registered on the app, every data route on the
+  `protected` router that depends on `require_api_key` (`auth.py`). FastAPI's `/docs`, `/redoc`
+  and `/openapi.json` expose the schema but no data and are deliberately left open so Swagger's
+  Authorize button works. The user-visible behaviour is in `README.md`, Environment.
 
 ## Module map (`src/nfl_api/`)
 
@@ -56,16 +55,7 @@ here and `docker compose ...` from the repo root. The root `CLAUDE.md` has the p
 - **Tests never open a connection** except `tests/test_integration.py`, which is skipped unless
   `NFL_TEST_DATABASE_URL` is set. Unit tests inject `FakeRepository` (`tests/conftest.py`) through
   `app.dependency_overrides[get_repository]`; `TestClient(app)` without `with` never runs the
-  lifespan. Run the integration test with the reader URL so it also proves the grants.
-
-## Commands
-
-```bash
-uv sync && uv run pytest && uv run ruff check src tests
-NFL_TEST_DATABASE_URL=postgresql://nfl_reader:nfl_reader@localhost:5432/nfl uv run pytest tests/test_integration.py
-uv run uvicorn nfl_api.main:app --reload                # laptop, against compose Postgres on :5432
-cd .. && docker compose build api && docker compose up -d api && curl -s localhost:8000/health
-docker compose exec -T postgres bash /docker-entrypoint-initdb.d/02-reader-role.sh   # role on an existing volume
-```
+  lifespan. Before reporting a change done, run the unit tests, lint and the integration test with
+  the reader URL (`docs/commands.md`) and rebuild the compose image.
 
 Commit only when asked. Paths in this file are relative to `api/`.

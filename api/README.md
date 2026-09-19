@@ -30,20 +30,9 @@ curl -s 'localhost:8000/games?season=2024&game_type=REG&team_id=6&played=true&so
 ## Running
 
 In compose (repo root) the `api` service starts with `docker compose up -d`, listens on
-`localhost:8000` and connects as the read-only role `nfl_reader`. That role is created on first boot
-by `docker/postgres/init/02-reader-role.sh`; on a volume created before that script existed, apply
-it once:
-
-```bash
-docker compose exec -T postgres bash /docker-entrypoint-initdb.d/02-reader-role.sh
-```
-
-On the laptop, against the compose Postgres:
-
-```bash
-uv sync
-uv run uvicorn nfl_api.main:app --reload      # http://localhost:8000/docs
-```
+`localhost:8000` and connects as the read-only role `nfl_reader` (created by
+`docker/postgres/init/02-reader-role.sh`). Running on the laptop, rebuilding the image, tests and
+applying the role to an older volume: [`docs/commands.md`](docs/commands.md).
 
 Environment (read from the process environment; compose passes them from `.env`):
 
@@ -53,13 +42,3 @@ Environment (read from the process environment; compose passes them from `.env`)
 | `NFL_API_KEY` | empty | when set, every data route requires the `X-API-Key` header with this value; `/health` and the `/docs` schema stay open |
 | `NFL_API_CORS_ORIGINS` | empty | comma-separated origins allowed by CORS (GET only) |
 | `NFL_API_POOL_MIN` / `NFL_API_POOL_MAX` | 1 / 10 | Postgres connection pool size; the max also caps concurrent requests |
-
-## Tests
-
-```bash
-uv run pytest && uv run ruff check src tests
-NFL_TEST_DATABASE_URL=postgresql://nfl_reader:nfl_reader@localhost:5432/nfl uv run pytest tests/test_integration.py
-```
-
-Unit tests use an in-memory repository and never open a database connection. The integration test
-runs the real app against the URL given and is skipped otherwise.
