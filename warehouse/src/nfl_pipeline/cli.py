@@ -177,36 +177,6 @@ def staging_truncate(
     typer.echo(truncate_staging(datasets))
 
 
-metadata_app = typer.Typer(help="Data dictionary + column labels (metadata schema).")
-app.add_typer(metadata_app, name="metadata")
-
-
-@metadata_app.command("build")
-def metadata_build():
-    """Rebuild metadata.* from clean.* + data/metadata/*.yaml (nflverse dictionaries downloaded in memory)."""
-    from .metadata import build_metadata
-
-    typer.echo(build_metadata())
-
-
-@metadata_app.command("lint")
-def metadata_lint(
-    show_warnings: bool = typer.Option(True, help="Print warnings (missing description/category)."),
-):
-    """Report unlabeled/undocumented columns and vocabulary errors. Exit 1 on errors."""
-    from .metadata import lint_metadata
-
-    errors, warnings = lint_metadata()
-    if show_warnings:
-        for w in warnings:
-            typer.echo(f"warning: {w}")
-    for e in errors:
-        typer.echo(f"error: {e}", err=True)
-    typer.echo(f"{len(errors)} errors, {len(warnings)} warnings")
-    if errors:
-        raise typer.Exit(1)
-
-
 @app.command()
 def current_season():
     """Print the season nflverse considers current."""

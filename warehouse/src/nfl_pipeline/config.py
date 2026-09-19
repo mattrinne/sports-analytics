@@ -11,16 +11,11 @@ from pathlib import Path
 class Settings:
     database_url: str
     start_season: int
-    data_dir: Path  # curated inputs: data/metadata/*.yaml, data/coaching_staff_overrides.csv
+    data_dir: Path  # curated inputs: data/coaching_staff_overrides.csv, data/seeds/*.csv
     dbt_dir: Path  # dbt project: clean + nfl layers
     staging_schema: str = "staging"  # landing zone, truncatable; clean is the durable copy
     clean_schema: str = "clean"
     analytics_schema: str = "nfl"
-    metadata_schema: str = "metadata"
-
-    @property
-    def metadata_dir(self) -> Path:
-        return self.data_dir / "metadata"
 
 
 def settings() -> Settings:

@@ -117,7 +117,7 @@ REGISTRY: dict[str, Dataset] = {
             name="coaching_staff",
             table="coaching_staff",
             loader="nfl_pipeline.sources.wikipedia_staff.load_coaching_staff",
-            description="Head coach, offensive/defensive/special teams coordinators per team-season with mid-season change dates, parsed from Wikipedia season articles.",
+            description="Head coach, offensive and defensive coordinators per team-season with mid-season change dates, parsed from Wikipedia season articles.",
             min_season=2010,
             indexes=(("season", "team"), ("coach",)),
         ),

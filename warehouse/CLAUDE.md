@@ -12,7 +12,6 @@ has the purpose, repo map and cross-cutting rules; `README.md` here is the user-
 | `clean` | dbt `models/clean/` | **Column-for-column copy of staging with types fixed.** Same 12 tables, same names. Incremental `merge` by primary key, filtered on `_loaded_at`. | No derived tables, no dropped columns, no renames, no FKs. PK only (natural key or `_row_id` md5). Generated code — do not hand-edit (see below). |
 | `reference` | dbt `models/reference/` + seeds | RDM: `reference_mappings` seed (source spelling/code → canonical, per `domain`). MDM: `*_identities` tables for coaches, referees, teams, stadiums, games (one row per spelling/code = `alias` → key). Small lookups (`coach_roles`). | Identity flows **mappings → identities → dimensions**. Ids are minted in identities, never in a dimension. |
 | `nfl` | dbt `models/marts/` | Persisted dimensions/facts derived from `reference` + `clean`: `coaches`, `referees`, `teams`, `stadiums`, `schedules`, `coaching_tenures`. Presentation views over them (`coaching_tenures_detail`) join names/abbreviations onto keys. | Anything holding data is a table (`table` or `incremental`) with a contract and a PK, `created_at`/`updated_at`. A view may only re-present persisted marts (joins to dimensions), never derive new facts. |
-| `metadata` | Python (`nfl_pipeline.metadata`) | Data dictionary + label axes for `clean.*` (same column names as staging). Manual `nfl-pipeline metadata build`. | Curated inputs in `data/metadata/*.yaml`. `metadata lint` must be 0 errors. |
 | `ops` | Python (`nfl_pipeline.runs`) | Run history: `runs` (one per `refresh`/`backfill`) and `run_steps` (one per dataset step, `dbt_build`, `truncate_staging`). Created with `IF NOT EXISTS` on first use. | Never a dbt model (dbt runs after it and may fail). Best-effort: a failure to record never fails a load. The only non-`nfl` schema the UI may read (data-health page). |
 
 Analysis queries go against `clean.*`, joined to `nfl.*` keys through `reference.*_identities.alias`.
@@ -34,7 +33,7 @@ Analysis queries go against `clean.*`, joined to `nfl.*` keys through `reference
    after a green dbt (default; `--keep-staging` opts out) → `ops.runs` row finished → webhook
    (`NFL_ALERT_WEBHOOK_URL`) on failure. Exit 0/1/2.
    Deployed, an Azure Container Apps Job runs `refresh` on `0 14 * * 2,3` UTC
-   (`deploy/azure/`). Side jobs are their own CLI command (`metadata build`, `staging truncate`) —
+   (`deploy/azure/`). Side jobs are their own CLI command (`staging truncate`) —
    never add cross-cutting steps to `refresh`.
 4. `coaching_staff` is not nflverse: Wikipedia season articles, batched MediaWiki API, 1 req/s,
    in memory only, corrections via `data/coaching_staff_overrides.csv`. Parser lives in
@@ -57,7 +56,7 @@ Analysis queries go against `clean.*`, joined to `nfl.*` keys through `reference
   from the live staging schema (flags = doubles whose values ⊂ {0,1}, whole-number doubles/bigints
   → smallint/integer, ISO text → date/timestamptz; PK / `_row_id` rules at the top of the script).
   `scripts/gen_dbt_columns.py <table>` (re)writes the column yml from the built table, keeping
-  hand-written descriptions and pulling nflverse descriptions from `metadata.columns`. Workflow
+  hand-written descriptions. Workflow
   after nflverse adds/retypes a column: load → gen model → `transform --full-refresh --select t`
   → gen columns.
 - Incremental pattern used everywhere: compute the full candidate set, `left join` the existing
@@ -135,7 +134,6 @@ From `warehouse/` (uv) and the repo root (compose):
 uv sync && uv run pytest && uv run ruff check src tests scripts
 uv run nfl-pipeline list | load pbp --season 2024 | refresh [-d x] [--keep-staging] | backfill --start 2010 [--full-refresh] | transform [--select x]
 uv run nfl-pipeline staging truncate -d pbp        # by hand; refresh/backfill already do it
-uv run nfl-pipeline metadata build && uv run nfl-pipeline metadata lint
 cd dbt && uv run dbt build --profiles-dir .        # same as transform
 cd .. && docker compose up -d                      # postgres only (repo root)
 docker compose build pipeline && docker compose run --rm pipeline refresh -d teams   # image = what Azure runs

@@ -33,4 +33,4 @@ fi
 
 HOST=$(az postgres flexible-server show -g "$AZ_RG" -n "$PG_SERVER" --query fullyQualifiedDomainName -o tsv)
 echo "NFL_DATABASE_URL=postgresql://${PG_ADMIN}:<password>@${HOST}:5432/${PG_DB}?sslmode=require"
-echo "Optional, once, with psql: ALTER DATABASE ${PG_DB} SET search_path TO nfl, reference, clean, staging, metadata, ops, public;"
+echo "Optional, once, with psql: ALTER DATABASE ${PG_DB} SET search_path TO nfl, reference, clean, staging, ops, public;"

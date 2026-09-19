@@ -11,7 +11,7 @@ docker build/push (by hand, for now) ──▶ ghcr.io/<owner>/nfl-pipeline:<tag
 Azure Container Apps Job  nfl-refresh   cron 0 14 * * 2,3 UTC   → nfl-pipeline refresh
                           nfl-manual    on demand                → nfl-pipeline backfill / transform / …
                                    │  NFL_DATABASE_URL (secret, ?sslmode=require)
-Azure Database for PostgreSQL Flexible Server  B1ms, 32 GiB   staging / clean / reference / nfl / metadata / ops
+Azure Database for PostgreSQL Flexible Server  B1ms, 32 GiB   staging / clean / reference / nfl / ops
 ```
 
 ## Monthly cost (East US, pay-as-you-go, list prices Sept 2026; check the pricing calculator)

@@ -58,7 +58,7 @@ One folder per component; the root holds only what spans them. Each component ha
 **Hard rule from the user:** nothing downloaded at runtime is written to disk (no vendored
 dictionaries, no wikitext cache, dbt writes `target/`/logs to `/tmp` in containers, nflreadpy's
 cache is off in the image and on a named volume locally). Curated, human-owned inputs live under
-`warehouse/data/` (`metadata/*.yaml`, `seeds/*.csv`, `coaching_staff_overrides.csv`) and are copied
+`warehouse/data/` (`seeds/*.csv`, `coaching_staff_overrides.csv`) and are copied
 into the image, as is `warehouse/dbt/`: rebuild the image after changing either.
 
 ## Commands (repo root)
@@ -66,7 +66,7 @@ into the image, as is `warehouse/dbt/`: rebuild the image after changing either.
 ```bash
 docker compose up -d                               # postgres only
 docker compose build pipeline                      # image = what Azure runs, built from ./warehouse
-docker compose run --rm pipeline refresh -d teams  # or backfill / transform / metadata build / staging truncate
+docker compose run --rm pipeline refresh -d teams  # or backfill / transform / staging truncate
 docker compose exec -T postgres psql -U nfl -d nfl -c "select * from ops.runs order by run_id desc limit 5"
 cd warehouse && uv sync && uv run pytest && uv run ruff check src tests scripts
 ```

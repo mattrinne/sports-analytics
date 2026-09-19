@@ -53,8 +53,8 @@ tables, same names, nothing dropped, nothing derived.
   its identifying columns and exact duplicate rows collapse to one. Foreign keys are not
   declared: a copy of nflverse is not referentially complete (roster-only players are missing
   from `players`, for instance), so joins across clean are by convention, as in the source.
-- **Documented.** Every column's description from the metadata dictionary is written as a
-  Postgres `COMMENT` (`\d+ clean.pbp` in psql shows them).
+- **Documented.** Column descriptions in the model yml (mostly from the nflverse data
+  dictionaries) are written as Postgres `COMMENT`s (`\d+ clean.pbp` in psql shows them).
 
 How it is maintained (`dbt/`):
 
@@ -116,7 +116,7 @@ How it is maintained (`dbt/`):
 - **`nfl.coaching_tenures`**: one row per continuous stint of a coach in a role with a franchise
   (`coach_id`, `team_id`, `role_id`, `is_interim`, `first_season`, `last_season`, `start_date`,
   `end_date`, `start_source`, `end_source`, timestamps). Roles come from `reference.coach_roles`
-  (1 HC, 2 OC, 3 DC; special teams is not tracked) via `reference_mappings` domain `coach_role`.
+  (1 HC, 2 OC, 3 DC; special teams is not pulled) via `reference_mappings` domain `coach_role`.
   Head coaches are built from the nflverse game log in `clean.schedules`, which names the head
   coach of every played game (1999+) and so catches coaches Wikipedia's end-of-season staff block
   omits (e.g. Nathaniel Hackett, fired in week 16 of 2022); Wikipedia adds the interim flag and
@@ -172,55 +172,6 @@ uv run nfl-pipeline transform            # = dbt build (incremental upsert), con
 uv run nfl-pipeline transform --full-refresh                 # drop + recreate every clean table from staging
 uv run dbt docs generate --project-dir dbt --profiles-dir dbt && uv run dbt docs serve --project-dir dbt
 ```
-
-## Metadata: data dictionary and column labels
-
-The `metadata` schema documents every `clean.*` column (same names as staging) and tags it so you
-can find stats by kind instead of by name.
-
-| object | contents |
-|---|---|
-| `metadata.tables` | one row per clean table: description, grain, source URL, partition key, row count, last load time |
-| `metadata.columns` | one row per clean column: type, description (781 from nflverse dictionaries, 125 curated in `metadata/overrides.yaml`), four label axes, free-form tags, null fraction |
-| `metadata.labels` | the controlled vocabulary for each axis |
-| `metadata.column_labels` | unpivoted `(table, column, axis, label)` view |
-
-Label axes (one value each; see `metadata/labels.yaml` for definitions):
-
-- **role** – identifier, dimension, time, situation, flag, measure, derived, model, betting, text, media, system
-- **side** – offense, defense, special_teams, neutral
-- **entity** – player, team, game, play, drive, coach, official, venue
-- **category** – passing, rushing, receiving, scoring, turnovers, first_downs, penalties, tackling, pass_rush, coverage, kicking, punting, kickoffs, returns, personnel, game_state, drive, series, expected_points, win_probability, passing_model, schedule, betting, weather, venue, officiating, coaching, roster, bio, identity, branding, fantasy, system
-- **tags** – multi-valued extras such as `perspective:home`, `vegas_adjusted`, `bucket`, `lateral`, `legacy_depth_chart`
-
-```sql
--- every defensive player measure in the box score
-select column_name, description
-from metadata.columns
-where table_name = 'player_stats_week' and side = 'defense' and role = 'measure';
-
--- model outputs available in pbp
-select column_name, category, tags from metadata.columns
-where table_name = 'pbp' and role = 'model';
-```
-
-How it is maintained: the curated inputs live in `data/metadata/` and the tables are rebuilt from the
-live schema. nflverse's own data dictionaries are downloaded from GitHub at build time, parsed in
-memory and not stored.
-
-- `data/metadata/tables.yaml` – table descriptions, per-table default entity, which nflverse dictionaries apply.
-- `data/metadata/labels.yaml` – vocabulary. Builds fail on labels not listed here.
-- `data/metadata/rules.yaml` – ordered regex rules; later rules override earlier ones for the axes they set, tags accumulate.
-- `data/metadata/overrides.yaml` – per-column descriptions and label corrections; these win over everything.
-
-```bash
-uv run nfl-pipeline metadata lint    # unlabeled / undocumented columns, bad labels; exit 1 on errors
-uv run nfl-pipeline metadata build   # rebuild metadata.* from clean.* + the yaml files
-```
-
-The rebuild is its own command, not part of `refresh`, so loads have no dependency on
-`data/metadata/`. Run it after adding a dataset, changing the rules, or when a load adds columns;
-`lint` tells you what still needs a description or category.
 
 ## How loading works
 
@@ -292,10 +243,10 @@ URL unless you set them yourself (`dbt/profiles.yml`). The same commands work in
 
 ```
 src/nfl_pipeline/     cli.py, datasets.py (registry), ingest.py + db.py (one load), runner.py (plan, parallel, retry),
-                      pipeline.py (load → dbt → truncate), runs.py (ops.* history), alerts.py (webhook), transform.py (dbt), metadata.py
+                      pipeline.py (load → dbt → truncate), runs.py (ops.* history), alerts.py (webhook), transform.py (dbt)
 dbt/                  dbt project: models/clean (typed copies), models/reference (mappings + identities), models/marts (nfl.* dimensions, tenures)
 scripts/              gen_clean_models.py (typed SELECT per staging table), gen_dbt_columns.py (column yml), alias_candidates.py
-data/                 curated inputs: metadata/*.yaml (labels, rules, overrides, table docs), coaching_staff_overrides.csv, seeds/reference_mappings.csv
+data/                 curated inputs: coaching_staff_overrides.csv, seeds/reference_mappings.csv, seeds/coach_roles.csv
 tests/                DB-free unit tests (runner, pipeline, run history, alerts, dbt env, CLI, parsers)
 Dockerfile            the pipeline image (python:3.12-slim + uv); built by the root compose file as `pipeline`
 pyproject.toml        the `nfl-pipeline` package, dbt as a runtime dependency

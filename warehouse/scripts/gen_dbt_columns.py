@@ -7,8 +7,7 @@ scripts/gen_clean_models.py, when it does not exist yet):
 
   * data_type comes from Postgres (format_type), so it always matches the SQL;
   * existing column entries keep their hand-written description / tests / constraints;
-  * new columns get the nflverse dictionary description from metadata.columns when the raw
-    column name matches (or the rename map below);
+  * new columns get no description (system columns excepted); write one by hand if wanted;
   * columns no longer in the table are removed.
 
 Usage (after `dbt build` of the model, with contracts off or already matching):
@@ -52,23 +51,8 @@ def table_columns(conn: psycopg.Connection, schema: str, table: str) -> list[tup
     ).fetchall()
 
 
-def dictionary(conn: psycopg.Connection) -> dict[tuple[str, str], str]:
-    try:
-        rows = conn.execute(
-            "SELECT table_name, column_name, description FROM metadata.columns WHERE description IS NOT NULL"
-        ).fetchall()
-    except psycopg.Error:
-        conn.rollback()
-        return {}
-    return {(t, c): d for t, c, d in rows}
-
-
-def describe(model: str, column: str, dictionary: dict[tuple[str, str], str]) -> str | None:
-    if column in SYSTEM_COLUMNS:
-        return SYSTEM_COLUMNS[column]
-    if (model, column) in dictionary:
-        return dictionary[(model, column)].strip()
-    return None
+def describe(column: str) -> str | None:
+    return SYSTEM_COLUMNS.get(column)
 
 
 def skeleton(model: str) -> dict:
@@ -89,7 +73,7 @@ def load_yml(path: Path, model: str) -> dict:
     return {"version": 2, "models": [skeleton(model)]}
 
 
-def refresh(conn: psycopg.Connection, model: str, dictionary: dict) -> int:
+def refresh(conn: psycopg.Connection, model: str) -> int:
     path = MODELS / f"{model}.yml"
     doc = load_yml(path, model)
     entry = next((m for m in doc["models"] if m["name"] == model), None)
@@ -104,7 +88,7 @@ def refresh(conn: psycopg.Connection, model: str, dictionary: dict) -> int:
         if name in RESERVED:  # dbt renders contract DDL unquoted; these need quoting in Postgres
             col["quote"] = True
         if not col.get("description"):
-            desc = describe(model, name, dictionary)
+            desc = describe(name)
             if desc:
                 col["description"] = desc
         # keep key order stable: name, data_type, description, then the rest
@@ -119,9 +103,8 @@ def refresh(conn: psycopg.Connection, model: str, dictionary: dict) -> int:
 def main(argv: list[str]) -> None:
     models = argv or sorted(p.stem for p in MODELS.glob("*.sql"))
     with psycopg.connect(settings().database_url) as conn:
-        dictionary_ = dictionary(conn)
         for model in models:
-            n = refresh(conn, model, dictionary_)
+            n = refresh(conn, model)
             print(f"{model}: {n} columns -> {MODELS / (model + '.yml')}")
 
 

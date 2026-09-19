@@ -38,7 +38,7 @@ def test_parse_roles_names_dates_and_interim_inference():
     assert reich.end_date == dt.date(2023, 11, 27) and not reich.is_interim
     tabor = rows[("head_coach", "Chris Tabor")]
     assert tabor.is_interim and tabor.start_date == dt.date(2023, 11, 27)
-    assert ("special_teams_coordinator", "Chris Tabor") in rows
+    assert not any(r == "special_teams_coordinator" for r, _ in rows)
     assert rows[("offensive_coordinator", "Thomas Brown")].end_date is None
     assert rows[("defensive_coordinator", "Ejiro Evero")].note is None
     # assistants and passing-game coordinators are not coordinators
@@ -81,8 +81,8 @@ def test_roles_for_title_segment_matching():
     assert _roles_for_title("Head coach") == [("head_coach", False)]
     assert _roles_for_title("Interim head coach/special teams coordinator") == [
         ("head_coach", True),
-        ("special_teams_coordinator", False),
     ]
+    assert _roles_for_title("Special teams coordinator") == []
     assert _roles_for_title("Assistant head coach/offensive coordinator") == [
         ("offensive_coordinator", False)
     ]
@@ -126,7 +126,6 @@ def test_bare_current_staff_template_is_parsed():
     roles = {e.role: e.coach for e in parse_staff(wt, 2026, "KC")}
     assert roles == {
         "head_coach": "Andy Reid",
-        "special_teams_coordinator": "Dave Toub",
         "offensive_coordinator": "Eric Bieniemy",
         "defensive_coordinator": "Steve Spagnuolo",
     }

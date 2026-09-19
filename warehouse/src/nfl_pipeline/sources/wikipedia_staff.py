@@ -32,7 +32,6 @@ ROLES = (
     "head_coach",
     "offensive_coordinator",
     "defensive_coordinator",
-    "special_teams_coordinator",
 )
 
 # Article titles that don't follow "<season> <teams.team_name> season".
@@ -219,21 +218,20 @@ def _split_title_name(line: str) -> tuple[str, str] | None:
 
 _ROLE_SEGMENT = re.compile(
     r"^(?P<prefix>(?:interim|acting|co-)\s*)?"
-    r"(?P<role>head coach|offensive coordinator|defensive coordinator|special teams coordinator)$"
+    r"(?P<role>head coach|offensive coordinator|defensive coordinator)$"
 )
 _ROLE_KEY = {
     "head coach": "head_coach",
     "offensive coordinator": "offensive_coordinator",
     "defensive coordinator": "defensive_coordinator",
-    "special teams coordinator": "special_teams_coordinator",
 }
 
 
 def _roles_for_title(title: str) -> list[tuple[str, bool]]:
     """Roles named by a title. Titles are '/'-separated segments ("Interim head coach/special teams
     coordinator"); a segment must be exactly the role (optionally interim/acting/co-) so "assistant
-    head coach", "associate head coach", "head coach research specialist" or "passing game
-    coordinator" don't match.
+    head coach", "associate head coach", "head coach research specialist", "passing game
+    coordinator" or "special teams coordinator" don't match.
     """
     roles: list[tuple[str, bool]] = []
     for seg in re.split(r"\s*[/&]\s*|\s+and\s+", title.lower()):
