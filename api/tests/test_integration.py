@@ -36,6 +36,7 @@ def test_dimensions(client):
     coaches = client.get("/coaches").json()
     tenures = client.get(f"/coaches/{coaches[0]['coach_id']}/tenures").json()
     assert isinstance(tenures, list)  # view join to reference.coach_roles works under owner rights
+    assert client.get("/coaches/999999/tenures").status_code == 404
     assert client.get("/referees").status_code == 200
     assert client.get("/stadiums").status_code == 200
 

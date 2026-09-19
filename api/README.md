@@ -50,8 +50,9 @@ Environment (read from the process environment; compose passes them from `.env`)
 | variable | default | meaning |
 |---|---|---|
 | `NFL_DATABASE_URL` | `postgresql://nfl:nfl@localhost:5432/nfl` | warehouse connection |
-| `NFL_API_KEY` | empty | when set, every route except `/health` requires the `X-API-Key` header with this value |
+| `NFL_API_KEY` | empty | when set, every data route requires the `X-API-Key` header with this value; `/health` and the `/docs` schema stay open |
 | `NFL_API_CORS_ORIGINS` | empty | comma-separated origins allowed by CORS (GET only) |
+| `NFL_API_POOL_MIN` / `NFL_API_POOL_MAX` | 1 / 10 | Postgres connection pool size; the max also caps concurrent requests |
 
 ## Tests
 

@@ -4,14 +4,12 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 
-from ..db import get_repository
-from ..repository import Repository
+from ..db import Repo
 from ..schemas import Game, GameQuery, Page
 
 router = APIRouter()
-Repo = Annotated[Repository, Depends(get_repository)]
 
 
 @router.get("/games", response_model=Page[Game])

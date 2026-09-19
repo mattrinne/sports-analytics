@@ -19,6 +19,8 @@ def test_health_is_never_protected():
     assert make_client(FakeRepository(), api_key="s3cret").get("/health").status_code == 200
 
 
-def test_openapi_declares_the_header():
-    spec = make_client(FakeRepository(), api_key="s3cret").get("/openapi.json").json()
+def test_docs_stay_open_and_declare_the_header():
+    c = make_client(FakeRepository(), api_key="s3cret")
+    assert c.get("/docs").status_code == 200  # schema only, no data: intentionally unprotected
+    spec = c.get("/openapi.json").json()
     assert spec["components"]["securitySchemes"]["APIKeyHeader"]["name"] == "X-API-Key"

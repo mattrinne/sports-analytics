@@ -66,4 +66,6 @@ def test_health_ok_and_degraded():
     ok = make_client(FakeRepository()).get("/health")
     assert ok.status_code == 200 and ok.json()["latest_success"]["run_id"] == 12
     bad = make_client(FakeRepository(healthy=False)).get("/health")
-    assert bad.status_code == 503 and bad.json()["status"] == "degraded"
+    assert bad.status_code == 503 and bad.json() == {
+        "status": "degraded", "database": "unavailable", "latest_run": None, "latest_success": None,
+    }

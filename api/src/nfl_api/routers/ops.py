@@ -4,14 +4,12 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Query
 
-from ..db import get_repository
-from ..repository import Repository
+from ..db import Repo
 from ..schemas import Run
 
 router = APIRouter()
-Repo = Annotated[Repository, Depends(get_repository)]
 
 
 @router.get("/ops/runs", response_model=list[Run])

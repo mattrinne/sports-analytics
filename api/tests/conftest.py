@@ -86,7 +86,10 @@ class FakeRepository:
     def get_team(self, team_id): return self._find(self.teams, "team_id", team_id)
     def list_coaches(self): return self.coaches
     def get_coach(self, coach_id): return self._find(self.coaches, "coach_id", coach_id)
-    def coach_tenures(self, coach_id): return [t for t in self.tenures if t.coach_id == coach_id]
+    def coach_tenures(self, coach_id):
+        if self.get_coach(coach_id) is None:
+            return None
+        return [t for t in self.tenures if t.coach_id == coach_id]
     def list_referees(self): return self.referees
     def get_referee(self, referee_id): return self._find(self.referees, "referee_id", referee_id)
     def list_stadiums(self): return self.stadiums
@@ -101,7 +104,7 @@ class FakeRepository:
 
     def health(self):
         if not self.healthy:
-            return Health(status="degraded", database="connection refused")
+            return Health(status="degraded", database="unavailable")
         latest = RunSummary.model_validate(SAMPLE_ROWS["run"])
         return Health(status="ok", database="ok", latest_run=latest, latest_success=latest)
 

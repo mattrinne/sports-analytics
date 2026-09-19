@@ -12,7 +12,7 @@ class Settings:
     api_key: str | None = None  # None = no auth; set NFL_API_KEY to require X-API-Key
     cors_origins: tuple[str, ...] = ()
     pool_min: int = 1
-    pool_max: int = 4
+    pool_max: int = 10  # also caps the worker threads that run sync endpoints (main.py lifespan)
 
 
 def settings() -> Settings:
@@ -22,4 +22,6 @@ def settings() -> Settings:
         cors_origins=tuple(
             o.strip() for o in os.environ.get("NFL_API_CORS_ORIGINS", "").split(",") if o.strip()
         ),
+        pool_min=int(os.environ.get("NFL_API_POOL_MIN", "1")),
+        pool_max=int(os.environ.get("NFL_API_POOL_MAX", "10")),
     )

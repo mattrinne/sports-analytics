@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from fastapi import APIRouter, HTTPException
 
-from fastapi import APIRouter, Depends, HTTPException
-
-from ..db import get_repository
-from ..repository import Repository
+from ..db import Repo
 from ..schemas import Coach, CoachingTenure, Referee, Stadium, Team
 
 router = APIRouter()
-Repo = Annotated[Repository, Depends(get_repository)]
 
 
 def _or_404[T](row: T | None, what: str, key: int) -> T:
@@ -42,8 +38,7 @@ def get_coach(coach_id: int, repo: Repo):
 
 @router.get("/coaches/{coach_id}/tenures", response_model=list[CoachingTenure])
 def coach_tenures(coach_id: int, repo: Repo):
-    _or_404(repo.get_coach(coach_id), "coach", coach_id)
-    return repo.coach_tenures(coach_id)
+    return _or_404(repo.coach_tenures(coach_id), "coach", coach_id)
 
 
 @router.get("/referees", response_model=list[Referee])

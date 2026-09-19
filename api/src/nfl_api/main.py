@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Annotated
 
+import anyio
 import psycopg
 from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,8 +15,8 @@ from psycopg_pool import PoolTimeout
 from . import config
 from .auth import require_api_key
 from .config import Settings
-from .db import get_repository, make_pool
-from .repository import PostgresRepository, Repository
+from .db import Repo, make_pool
+from .repository import PostgresRepository
 from .routers import dimensions, games, ops
 from .schemas import Health
 
@@ -29,6 +29,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         pool = make_pool(s)
         pool.open(wait=False)
         app.state.repository = PostgresRepository(pool)
+        # Sync endpoints run on anyio's worker threads (40 by default). Cap them at the pool size
+        # so a burst queues for a thread instead of failing pool checkout with a 503.
+        anyio.to_thread.current_default_thread_limiter().total_tokens = s.pool_max
         try:
             yield
         finally:
@@ -57,7 +60,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(protected)
 
     @app.get("/health", response_model=Health, responses={503: {"model": Health}}, tags=["ops"])
-    def health(repo: Annotated[Repository, Depends(get_repository)]):
+    def health(repo: Repo):
         h = repo.health()
         if h.status != "ok":
             return JSONResponse(status_code=503, content=h.model_dump(mode="json"))

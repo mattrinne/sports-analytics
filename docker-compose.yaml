@@ -40,9 +40,8 @@ services:
     image: nfl-api:local
     ports:
       - "8000:8000"
-    env_file:
-      - path: .env
-        required: false
+    # No env_file: the api gets only these three (compose still reads .env for the ${...} values),
+    # not the superuser password or the owner-role URL.
     environment:
       NFL_DATABASE_URL: postgresql://nfl_reader:nfl_reader@postgres:5432/nfl
       NFL_API_KEY: ${NFL_API_KEY:-}
