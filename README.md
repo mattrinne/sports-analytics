@@ -24,7 +24,7 @@ Requirements: Docker Desktop, [`uv`](https://docs.astral.sh/uv/) (for the local 
 
 ```bash
 cp .env.example .env                                   # passwords, optional webhook
-docker compose up -d                                   # postgres (the only long-running service)
+docker compose up -d                                   # postgres + the read-only api on :8000
 docker compose build pipeline                          # the nfl-pipeline image, from warehouse/
 docker compose run --rm pipeline backfill --start 2010 # every dataset 2010→now into staging.*, then dbt build
 ```
@@ -33,6 +33,7 @@ Compose commands run from the repo root. Everything else about the warehouse (it
 tests) lives in [`warehouse/`](warehouse/README.md) and runs from there with `uv`.
 
 - Warehouse: `postgresql://nfl:nfl@localhost:5432/nfl` (works with `psql`, DBeaver, pandas, DuckDB…)
+- API: <http://localhost:8000/docs> (read-only JSON over `nfl.*` and `ops.*`, see [`api/`](api/README.md))
 - Run history: `select * from ops.runs order by run_id desc;`
 
 The backfill loads every dataset from `NFL_START_SEASON` (2010) through the current season into
@@ -46,10 +47,11 @@ Narrow either to some datasets with `-d pbp -d schedules`.
 | folder | what | docs |
 |---|---|---|
 | `warehouse/` | the data warehouse: `nfl-pipeline` loader + CLI, dbt project (`clean`, `reference`, `nfl`), curated inputs, tests, the pipeline image | [`warehouse/README.md`](warehouse/README.md) |
+| `api/` | read-only FastAPI over the `nfl.*` marts and `ops.*` run history, the `api` image | [`api/README.md`](api/README.md) |
 | `deploy/azure/` | runbook and `az` scripts: Postgres Flexible Server, Container Apps environment, scheduled + manual jobs | [`deploy/azure/README.md`](deploy/azure/README.md) |
 | `docs/` | The Hook (the betting-analysis UI): brainstorm, theme tokens and rules | [`docs/ui-brainstorm.md`](docs/ui-brainstorm.md) |
-| `docker/postgres/init/` | shared Postgres bootstrap: the `nfl` database and its schemas | |
-| `docker-compose.yaml` | local stack: Postgres plus the on-demand `pipeline` service; `api/` and `web/` will join it | |
+| `docker/postgres/init/` | shared Postgres bootstrap: the `nfl` database, its schemas and the read-only `nfl_reader` role | |
+| `docker-compose.yaml` | local stack: Postgres, the `api` service and the on-demand `pipeline` service | |
 
 Each component owns its toolchain and its own `CLAUDE.md`; the root holds only what spans them.
 
