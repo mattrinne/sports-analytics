@@ -7,15 +7,13 @@
 #   docker compose run --rm pipeline refresh              # current season + dbt build + truncate staging
 #   docker compose run --rm pipeline transform --full-refresh --select teams
 # Warehouse: postgresql://nfl:nfl@localhost:5432/nfl      API: http://localhost:8000/docs
-# The api connects as the read-only role nfl_reader (docker/postgres/init/02-reader-role.sh). On a
-# volume created before that script existed, apply it once:
-#   docker compose exec -T postgres bash /docker-entrypoint-initdb.d/02-reader-role.sh
+# The api connects as the read-only role nfl_reader; applying it to an older volume: api/README.md.
 #
-# Scheduling is not a service here. Deployed, an Azure Container Apps Job runs `refresh` on a cron
-# (see deploy/azure); locally you run it by hand.
+# Scheduling is not a service here: you run `refresh` by hand (thoughts on a scheduled cloud
+# deployment: docs/cloud-deployment.md).
 #
 # Staging is truncated after every green dbt build; the rule and its exceptions are in
-# warehouse/CLAUDE.md (Layers, dbt conventions).
+# warehouse/docs/layers.md.
 
 services:
   postgres:

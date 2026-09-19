@@ -2,8 +2,8 @@
 
 The data layer of sports-analytics: nflverse data (plus Wikipedia coaching staffs) loaded into
 Postgres by the `nfl-pipeline` CLI, transformed by dbt into typed copies, identity tables and
-persisted marts. The [root README](../README.md) has the system overview and quick start; this file
-is the warehouse in detail.
+persisted marts. The [root README](../README.md) has the system overview; this file lists what is
+loaded and where the detail lives.
 
 ## Datasets
 
@@ -18,128 +18,25 @@ is the warehouse in detail.
 | team_stats_week | `staging.team_stats_week` | team-game | by season | post-game box score (nflfastR aggregation) |
 | player_stats_week | `staging.player_stats_week` | player-game | by season | post-game box score |
 | pbp | `staging.pbp` | play | by season | nflfastR play-by-play incl. EPA / WP, ~370 columns, ~50k rows per season |
-| participation | `staging.participation` | play | by season (2016+) | NGS charting: `offense_formation`, `offense_personnel`, `defense_personnel`, `defenders_in_box`, `number_of_pass_rushers`, `defense_man_zone_type`, `defense_coverage_type`, players on the field. Published after the season ends, so the current season is skipped until nflverse releases it. |
+| participation | `staging.participation` | play | by season (2016+) | NGS charting: `offense_formation`, `offense_personnel`, `defense_personnel`, `defenders_in_box`, `number_of_pass_rushers`, `defense_man_zone_type`, `defense_coverage_type`, players on the field. Published after the season ends, so the current season is skipped until nflverse releases it; coverage type exists on about half of charted plays. |
 | coaching_staff | `staging.coaching_staff` | coach-role × team-season | by season (2010+) | **Not nflverse.** Head coach, OC, DC with mid-season change dates, parsed from the Staff section of Wikipedia season articles (one batched API request per season, held in memory only; the current season falls back to each team's live `Template:<Team> staff`). Interim holders are separate rows; `flags` marks rows the parser wasn't sure about. Corrections go in `data/coaching_staff_overrides.csv`, which replaces parsed rows for the same season/team/role. |
 | officials | `staging.officials` | game × official | by season (2015+) | |
 
 Every staging table also has `_loaded_at timestamptz`; clean keeps it and uses it to find new rows.
 
-## Clean layer (dbt)
+## Documentation
 
-`staging.*` is where loads land; **`clean.*`** is what you keep and analyze. Clean is built by
-[dbt](https://docs.getdbt.com/) from the project in `dbt/` at the end of every `refresh`/`backfill`
-run and is a **column-for-column copy of staging with the types fixed**: same twelve
-tables, same names, nothing dropped, nothing derived.
+| topic | file |
+|---|---|
+| schemas, what may live in each, the `clean` and `nfl` tables, dbt conventions | [`docs/layers.md`](docs/layers.md) |
+| names, codes and ids: the `reference` layer, mappings, known quirks | [`docs/identity.md`](docs/identity.md) |
+| `refresh` / `backfill`: code path, behaviour, options, run history, alerts | [`docs/loading.md`](docs/loading.md) |
+| running the CLI, connection variables, verifying a change | [`docs/commands.md`](docs/commands.md) |
 
-- **Types fixed.** nflverse's parquet files lose types on the way in: 0/1 doubles become
-  `boolean` (82 pbp flags such as `shotgun`, `touchdown`, `pass`), whole-number doubles and
-  bigints become `smallint`/`integer`, ISO text becomes `date`/`time`/`timestamptz`
-  (`gameday`, `gametime`, `time_of_day`, `birth_date`), and nothing else changes. The casts are
-  generated from the live staging schema by `scripts/gen_clean_models.py`, so a new column shows
-  up typed on the next generation run.
-- **Upserted, so staging is disposable.** Each clean table is a dbt incremental model with the
-  `merge` strategy on a primary key. A run takes only source rows whose `_loaded_at` is newer
-  than anything already in clean (macro `only_new`), and merges them by key. Nothing is ever
-  dropped on a normal run, so staging is truncated once dbt is green (rule and exceptions:
-  `CLAUDE.md`, Layers).
-- **Keys.** Natural keys where the source has one: `schedules(game_id)`, `pbp(game_id, play_id)`,
-  `participation(nflverse_game_id, play_id)`, `team_stats_week(season, week, team)`,
-  `officials(game_id, official_id)`, `teams(team_abbr)`, `players(gsis_id)`. Where it does not
-  (`player_stats_week` has team placeholder rows without a player id; a player can appear twice
-  in one week of `rosters_weekly` with two statuses; `depth_charts` has two formats and exact
-  duplicates; `coaching_staff` stints can lack a start date) the table gets an `_row_id` md5 of
-  its identifying columns and exact duplicate rows collapse to one. Foreign keys are not
-  declared: a copy of nflverse is not referentially complete (roster-only players are missing
-  from `players`, for instance), so joins across clean are by convention, as in the source.
-- **Documented.** Column descriptions in the model yml (mostly from the nflverse data
-  dictionaries) are written as Postgres `COMMENT`s (`\d+ clean.pbp` in psql shows them).
+## Example queries
 
-How it is maintained (`dbt/`):
-
-- `models/clean/<table>.sql` is the typed SELECT, generated by `scripts/gen_clean_models.py`
-  (type rules, primary keys and `_row_id` columns live at the top of that script);
-  `models/clean/<table>.yml` declares every column with its type (dbt *contract*), the
-  description and the primary-key constraint, generated by `scripts/gen_dbt_columns.py`.
-  Regenerate both after nflverse adds or retypes a column: run the loads, then
-
-  ```bash
-  uv run python scripts/gen_clean_models.py <table>     # rewrite the SELECT from staging
-  uv run nfl-pipeline transform --full-refresh --select <table>   # recreate with the new shape
-  uv run python scripts/gen_dbt_columns.py <table>      # refresh the yml (keeps hand edits)
-  ```
-
-- **Incremental by default, full refresh on demand.** A normal `dbt build` upserts; it cannot see
-  rows nflverse *deleted* from a re-published season, and it fails (by design, `on_schema_change:
-  fail`) when a model's columns changed. Both cases want `backfill --full-refresh [-d <table>]`;
-  why not a bare `transform --full-refresh` is in `CLAUDE.md` (dbt conventions).
-- **`reference.*` owns identity.** `reference.reference_mappings` is the curated reference data
-  (RDM): spelling and code equivalences per domain, seeded from `data/seeds/reference_mappings.csv`
-  (`domain`, `source_system`, `source_value`, `canonical_value`, optional season range, note).
-  Only exceptions are listed; anything without a row passes through unchanged. On top of it sit
-  the master-data tables, one per entity: `reference.coach_identities`,
-  `reference.referee_identities`, `reference.team_identities`, `reference.stadium_identities` and
-  `reference.game_identities`, one row per spelling or code seen anywhere (`alias`: Wikipedia
-  staff names, nflverse per-game head-coach and referee names, officials crew names, team codes,
-  nflverse venue codes, nflverse and GSIS game ids), resolved to the canonical value and the key
-  (`coach_id`, `referee_id`, `team_id`, `stadium_id`, `game_id`), with `source` = canonical or reference_mappings and
-  `created_at`/`updated_at`. Ids are minted here: `coach_id` and `referee_id` from a sequence in
-  order of first appearance and never reused (nflverse's `official_id` cannot serve: it was
-  renumbered in 2023 and does not exist before 2015); the integer `game_id` likewise, with both
-  the nflverse string (`2024_06_JAX_CHI`, used by pbp and the stats tables) and the GSIS
-  `old_game_id` (`2024101300`, used by officials) as aliases; and `stadium_id` from the nflverse
-  venue code (`JAX00`); `team_id` is nflverse's numeric franchise
-  id, which a franchise keeps through relocations (OAK and LV are one team). To key any table on a
-  coach, referee or team, join its name/code column to `alias`.
-- **`nfl.*` holds persisted dimensions derived from `reference`.** `nfl.coaches`
-  (`coach_id`, canonical `coach_name`, timestamps: every coach in the Wikipedia staff data and every
-  head coach in the nflverse game log) and `nfl.teams` (exactly the 32 current
-  franchises: `team_id`, canonical code with `LAR` for the Rams, name, nickname, conference,
-  division, timestamps that move only when an attribute changes). "Current" is data-driven: the
-  home teams of the latest season in `clean.schedules`. `nfl.referees` (`referee_id`, canonical
-  `referee_name`, timestamps) covers every crew chief in the game log 1999+, replacement officials
-  included. `nfl.stadiums` (integer `stadium_id`, nflverse venue code `stadium_code` such as
-  `JAX00`, stable through naming-rights changes and present on every game and play, latest
-  `stadium_name`, `roof` (dome / outdoors / retractable), latest `surface`, `first_season`,
-  `last_season`); season-bounded `stadium` mapping rows correct names (the 2026 schedule still
-  says Reliant Stadium). Analysis queries go straight against `clean.*` and join through `reference` to these
-  keys.
-- **`nfl.schedules`**: one row per game 1999+, played and scheduled, keyed by the integer
-  `game_id`, with teams, head coaches, referee and venue as warehouse keys, scores and result,
-  winner/loser id and side, the external ids (GSIS, PFR, PFF, ESPN, FTN), rest days, closing
-  lines, weather, and `time_of_day` (kickoff in US Central: morning before 12:00, noon to 13:59,
-  afternoon to 16:59, night from 17:00; `gametime` itself stays US Eastern as nflverse gives it).
-  Incremental, so `updated_at` moves when a score lands, a kickoff is flexed or a line changes.
-- **`nfl.coaching_tenures`**: one row per continuous stint of a coach in a role with a franchise
-  (`coach_id`, `team_id`, `role_id`, `is_interim`, `first_season`, `last_season`, `start_date`,
-  `end_date`, `start_source`, `end_source`, timestamps). Roles come from `reference.coach_roles`
-  (1 HC, 2 OC, 3 DC; special teams is not pulled) via `reference_mappings` domain `coach_role`.
-  Head coaches are built from the nflverse game log in `clean.schedules`, which names the head
-  coach of every played game (1999+) and so catches coaches Wikipedia's end-of-season staff block
-  omits (e.g. Nathaniel Hackett, fired in week 16 of 2022); Wikipedia adds the interim flag and
-  any recorded change dates. Coordinators come from `clean.coaching_staff` (2010+). The source
-  columns name the table each date came from: `coaching_staff` (a recorded date, exact) or
-  `schedules` (the game log: first/last game coached around a mid-season head-coach change, or the
-  season calendar as a proxy for an undated season-long stint: the day after the franchise's
-  previous season ended, or its last game). A NULL date with a NULL source is unknown (an undated
-  interim change and the coach it replaced); `end_source` = `ongoing` marks a current tenure.
-  Incremental: only tenures whose dates,
-  sources or last season changed are rewritten. `nfl.coaching_tenures_detail` is a view over it
-  with `coach_name`, `team_abbr`/`team_name` and `role_abbr` joined in and the source/audit columns
-  left out, for reading; the only views
-  in `nfl` are presentation views like this one over persisted marts.
-- **Maintaining the mappings.** Spelling variants (`Billy Davis` / `Bill Davis`, nflverse's
-  `Klint Kubliak`; referee typos such as `Bill Carolo`, `Adrian Hall`, `John Perry`, verified
-  against the officials crew data) and code variants (the warehouse uses 41 codes for 32 teams: era codes
-  `STL`/`SD`/`OAK`, nflverse's `LA`, GSIS club codes `ARZ`/`BLT`/`CLV`/`HST`/`SL` in 2010–2015
-  rosters) are fixed by adding a CSV row, never automatically: `uv run python
-  scripts/alias_candidates.py coach|referee` prints look-alike pairs not yet mapped and a person
-  decides (relatives such as the Harbaughs, Shanahans, Hochulis and Careys score high and must
-  stay separate). On the next build the alias row takes the canonical's id and the retired id
-  disappears from `nfl.coaches`. A dbt test fails the build if any table uses a team code that
-  `team_identities` cannot resolve. Parser artifacts (footnote daggers, `, Jr.` punctuation) are
-  fixed in the Wikipedia parser instead of being mapped.
-
-Typical queries go straight at `clean.*` (typed, all history):
+Typical queries go straight at `clean.*` (typed, all history) and join through `reference` to the
+`nfl.*` keys:
 
 ```sql
 select posteam, avg(epa) from clean.pbp where season = 2024 and pass group by 1 order by 2 desc;
@@ -163,98 +60,19 @@ join nfl.schedules g on g.game_id = gi.game_id
 where g.season = 2024 group by 1, 2;
 ```
 
-```bash
-uv run nfl-pipeline transform            # = dbt build (incremental upsert), connection from NFL_DATABASE_URL
-uv run nfl-pipeline transform --full-refresh                 # drop + recreate every clean table from staging
-uv run dbt docs generate --project-dir dbt --profiles-dir dbt && uv run dbt docs serve --project-dir dbt
-```
-
-## How loading works
-
-`src/nfl_pipeline/` is the loader. `refresh` and `backfill` build a plan of (dataset, season) steps
-from the registry and hand it to `runner.run_plan`; `ingest.load_dataset` does one step; dbt takes
-it from staging to clean.
-
-- **Schema-on-write.** Tables are created from the Polars dtypes of the first file loaded. Later
-  files that add columns get `ALTER TABLE ADD COLUMN`; a column whose type changes is widened
-  (int → double → text). No hand-written DDL for 370-column pbp.
-- **Idempotent partitions.** Seasonal datasets are `DELETE WHERE season = X` + `COPY` in one
-  transaction. Re-running a season is safe. Non-seasonal datasets are `TRUNCATE` + `COPY`.
-- **Fast.** Polars → CSV → `COPY FROM STDIN`. A full pbp season loads in ~3 s.
-- **Cached downloads.** nflreadpy caches parquet files on a Docker volume (`NFLREADPY_CACHE_DIR`), 24 h TTL.
-- **Parallel across datasets, serial within one.** Up to `--workers` (4) datasets load at once;
-  a dataset's seasons run one after another so the per-table lock never contends and memory stays
-  bounded (one pbp season is ~0.5 GB at peak). Network and connection errors are retried
-  (`--retries 2`, 30 s then 60 s); a season nflverse has not published yet (`participation` lags a
-  year) is a *skip*, not a failure. dbt runs only when nothing failed; skips are fine.
-- **Staging is emptied after a green dbt build** (`--keep-staging` opts out; `staging truncate -y`
-  by hand). Tables stay, only the rows go. Rule and exceptions: `CLAUDE.md` (Layers).
-
-### Run history and alerts
-
-Every `refresh`/`backfill` writes one row to `ops.runs` (command, status `running|success|failed`,
-season, args, start/finish, error) and one per step to `ops.run_steps` (dataset or `dbt_build` /
-`truncate_staging`, status `loaded|skipped|failed`, attempts, rows, seconds, error). The tables are
-created on first use; the future UI's data-health page reads them.
-
-```sql
-select run_id, command, status, started_at, finished_at, error from ops.runs order by run_id desc limit 10;
-select step, season, status, attempts, rows, seconds from ops.run_steps where run_id = 42 order by step_id;
-```
-
-Set `NFL_ALERT_WEBHOOK_URL` (Slack incoming webhook, Discord webhook, an <https://ntfy.sh> topic) to
-get a short message when a run fails; `--notify-success` sends one on success too. Exit code is 0
-when everything loaded or skipped and dbt passed, 1 otherwise, 2 for a usage error.
-
-### Adding a dataset
-
-Add one `Dataset(...)` entry to `REGISTRY` in `src/nfl_pipeline/datasets.py` (any `nflreadpy.load_*`
-function, or a dotted path to a loader in this package, works). `refresh`, `backfill` and `list`
-pick it up automatically. Candidates:
-`load_injuries`, `load_snap_counts`, `load_nextgen_stats`, `load_ftn_charting`.
-
-## Local development
-
-From `warehouse/`:
-
-```bash
-uv sync                                  # creates .venv with the package + dev tools (dbt included)
-uv run nfl-pipeline list
-uv run nfl-pipeline load pbp --season 2024
-uv run nfl-pipeline refresh -d schedules -d teams
-uv run nfl-pipeline backfill --start 2010 -d team_stats_week -d player_stats_week
-uv run nfl-pipeline transform            # dbt build: upsert clean.* and nfl.* marts
-uv run nfl-pipeline transform --select schedules --full-refresh   # extra args go to dbt build
-uv run nfl-pipeline staging truncate -d pbp -y   # by hand; refresh/backfill already do it (-y skips the prompt)
-uv run nfl-pipeline current-season       # the season nflreadpy considers current (what refresh loads)
-uv run nfl-pipeline -v refresh ...       # debug logging
-uv run pytest && uv run ruff check src tests scripts
-```
-
-`refresh` and `backfill` share these options: `-d/--dataset` (repeatable subset), `--workers` (4,
-datasets in parallel), `--retries` (2) and `--retry-delay` (30 s, doubling) for network errors,
-`--skip-transform` (no dbt afterwards), `--full-refresh` (dbt drop + recreate), `--keep-staging`
-(do not truncate staging after dbt) and `--notify-success` (webhook on success too, not only failure).
-
-The CLI reads `NFL_DATABASE_URL` (defaults to the Docker Postgres on localhost) and the
-`NFLREADPY_CACHE*` variables; dbt gets the same connection as `NFL_DB_*` parts, derived from the
-URL unless you set them yourself (`dbt/profiles.yml`). The same commands work inside the image, from the repo root:
-`docker compose run --rm pipeline <command>`.
-
 ## Layout
 
 ```
 src/nfl_pipeline/     cli.py, datasets.py (registry), ingest.py + db.py (one load), runner.py (plan, parallel, retry),
                       pipeline.py (load → dbt → truncate), runs.py (ops.* history), alerts.py (webhook), transform.py (dbt)
-dbt/                  dbt project: models/clean (typed copies), models/reference (mappings + identities), models/marts (nfl.* dimensions, tenures)
+dbt/                  dbt project: models/clean (typed copies), models/reference (mappings + identities), models/marts (nfl.* marts)
 scripts/              gen_clean_models.py (typed SELECT per staging table), gen_dbt_columns.py (column yml), alias_candidates.py
 data/                 curated inputs: coaching_staff_overrides.csv, seeds/reference_mappings.csv, seeds/coach_roles.csv
 tests/                DB-free unit tests (runner, pipeline, run history, alerts, dbt env, CLI, parsers)
+docs/                 layers.md, identity.md, loading.md, commands.md (the detail; README and CLAUDE.md point here)
 Dockerfile            the pipeline image (python:3.12-slim + uv); built by the root compose file as `pipeline`
 pyproject.toml        the `nfl-pipeline` package, dbt as a runtime dependency
 ```
 
 The image contains the installed package, `dbt/` and `data/`; rebuild it after changing any
-of those (`docker compose build pipeline` from the repo root). dbt writes `target/` and logs to `/tmp` inside the
-container and nflreadpy's cache is off there (a named volume holds it locally); nothing downloaded
-at runtime is written to disk.
+of those (`docker compose build pipeline` from the repo root).

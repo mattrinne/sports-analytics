@@ -1,46 +1,25 @@
 # sports-analytics
 
-NFL data warehouse. [nflverse](https://github.com/nflverse) data is pulled once via
-[`nflreadpy`](https://github.com/nflverse/nflreadpy) into Postgres by a small CLI that runs as a
-scheduled container, so it can be analyzed forever without re-downloading. It is the data layer for
-**The Hook**, a sports-betting analysis UI (see `docs/`).
+NFL data warehouse plus a read-only API over it. [nflverse](https://github.com/nflverse) data is
+pulled once via [`nflreadpy`](https://github.com/nflverse/nflreadpy) into Postgres by the
+`nfl-pipeline` CLI and transformed by dbt; the `api` serves the resulting marts as JSON. It is the
+data layer for **The Hook**, a sports-betting analysis UI (see `docs/`). Everything runs locally in
+docker compose.
 
 ```
-nflverse parquet (GitHub releases)
-        │  nflreadpy.load_*()           polars DataFrame
-        ▼
- warehouse/src      ──COPY──▶  Postgres  staging.*  (landing zone: 1:1 mirror of the files, truncatable)
-                                        clean.*    (dbt: same tables and columns, types fixed, upserted by key — the durable copy)
-                                        reference.* (dbt: curated mappings + identity tables — every source spelling/code → key)
-                                        nfl.*      (dbt: persisted marts derived from reference + clean — teams, coaches, referees, stadiums, schedules, coaching_tenures; views only re-present them)
-        ▲
- nfl-pipeline refresh   (scheduled container: Azure Container Apps Job, Tue+Wed; current season → dbt build → truncate staging)
- nfl-pipeline backfill  (manual: season range → dbt build → truncate staging)     ops.*  run history for both
+nflverse parquet ──nfl-pipeline──▶ Postgres: staging.* → clean.* → reference.* → nfl.*   (+ ops.* run history)
+                                                                                  │
+                                                                     api (FastAPI, :8000) ──▶ JSON
 ```
+
+What each schema holds and how loads work: [`warehouse/README.md`](warehouse/README.md). The
+routes: [`api/README.md`](api/README.md).
 
 ## Quick start
 
-Requirements: Docker Desktop, [`uv`](https://docs.astral.sh/uv/) (for the local CLI and tests).
-
-```bash
-cp .env.example .env                                   # passwords, optional webhook
-docker compose up -d                                   # postgres + the read-only api on :8000
-docker compose build pipeline                          # the nfl-pipeline image, from warehouse/
-docker compose run --rm pipeline backfill --start 2010 # every dataset 2010→now into staging.*, then dbt build
-```
-
-Compose commands run from the repo root. Everything else about the warehouse (its CLI, dbt project,
-tests) lives in [`warehouse/`](warehouse/README.md) and runs from there with `uv`.
-
-- Warehouse: `postgresql://nfl:nfl@localhost:5432/nfl` (works with `psql`, DBeaver, pandas, DuckDB…)
-- API: <http://localhost:8000/docs> (read-only JSON over `nfl.*` and `ops.*`, see [`api/`](api/README.md))
-- Run history: `select * from ops.runs order by run_id desc;`
-
-The backfill loads every dataset from `NFL_START_SEASON` (2010) through the current season into
-`staging.*`, then runs `dbt build` to upsert `clean.*` and the `nfl.*` marts. Afterwards
-`docker compose run --rm pipeline refresh` keeps the current season fresh; deployed, an Azure
-Container Apps Job runs that same command on a schedule (see [Deploying](#deploying-to-azure)).
-Narrow either to some datasets with `-d pbp -d schedules`.
+Requirements: Docker Desktop, [`uv`](https://docs.astral.sh/uv/) (for the local CLIs and tests).
+The commands, from `.env` to the first load: [`docs/commands.md`](docs/commands.md). What
+`backfill` and `refresh` do: [`warehouse/docs/loading.md`](warehouse/docs/loading.md).
 
 ## Components
 
@@ -48,27 +27,9 @@ Narrow either to some datasets with `-d pbp -d schedules`.
 |---|---|---|
 | `warehouse/` | the data warehouse: `nfl-pipeline` loader + CLI, dbt project (`clean`, `reference`, `nfl`), curated inputs, tests, the pipeline image | [`warehouse/README.md`](warehouse/README.md) |
 | `api/` | read-only FastAPI over the `nfl.*` marts and `ops.*` run history, the `api` image | [`api/README.md`](api/README.md) |
-| `deploy/azure/` | runbook and `az` scripts: Postgres Flexible Server, Container Apps environment, scheduled + manual jobs | [`deploy/azure/README.md`](deploy/azure/README.md) |
-| `docs/` | The Hook (the betting-analysis UI): brainstorm, theme tokens and rules | [`docs/ui-brainstorm.md`](docs/ui-brainstorm.md) |
+| `docs/` | repo-root commands; The Hook (the betting-analysis UI): style directions, layout principles, theme tokens and rules; thoughts on a cloud deployment | [`docs/commands.md`](docs/commands.md), [`docs/ui/theme.md`](docs/ui/theme.md), [`docs/cloud-deployment.md`](docs/cloud-deployment.md) |
 | `docker/postgres/init/` | shared Postgres bootstrap: the `nfl` database, its schemas and the read-only `nfl_reader` role | |
 | `docker-compose.yaml` | local stack: Postgres, the `api` service and the on-demand `pipeline` service | |
 
 Each component owns its toolchain and its own `CLAUDE.md`; the root holds only what spans them.
 
-## Deploying to Azure
-
-The warehouse runs on the cheapest serverless shape Azure offers: **Azure Database for PostgreSQL
-Flexible Server** (burstable B1ms, the one always-on cost, ~$17/month with storage) and an
-**Azure Container Apps Job** that starts the pipeline image on a cron trigger (`refresh`, Tue+Wed),
-runs for a few minutes and exits, inside the free monthly grant. A
-second, manually triggered job runs backfills. The image is pushed to GitHub Container Registry
-(`ghcr.io/<owner>/nfl-pipeline`) by hand for now; a CI build is a later step.
-
-The runbook and idempotent `az` scripts are in [`deploy/azure/`](deploy/azure/README.md).
-
-## Roadmap
-
-- **Opening lines / line movement.** Only closing lines are in nflverse. A separate source with its
-  own identity work would be needed; deferred.
-- Extend history: lower `NFL_START_SEASON` in `.env` or run `backfill --start 1999`. pbp/stats go
-  back to 1999.
